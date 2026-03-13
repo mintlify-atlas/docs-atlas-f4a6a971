@@ -1,0 +1,509 @@
+---
+title: 'Delivery Management'
+description: 'Plan delivery routes, assign drivers, track deliveries, and optimize distribution'
+icon: 'truck-fast'
+---
+
+## Overview
+
+Fluxora's Delivery Management system enables efficient route planning, driver assignment, real-time delivery tracking, and route optimization. The system integrates with GPS coordinates to calculate optimal delivery sequences and minimize travel time.
+
+## System Components
+
+The Delivery module consists of three main components:
+
+<CardGroup cols={3}>
+  <Card title="Routes" icon="route" href="#delivery-routes">
+    Define delivery routes with origin points and driver assignments
+  </Card>
+  <Card title="Deliveries" icon="box" href="#delivery-records">
+    Track individual deliveries and order fulfillment
+  </Card>
+  <Card title="Scheduling" icon="calendar-days" href="#delivery-scheduling">
+    Plan and schedule deliveries for specific dates
+  </Card>
+</CardGroup>
+
+## Delivery Routes
+
+### Route Information
+
+Each delivery route (Ruta) contains:
+
+- **ID**: Unique route identifier
+- **Name** (nombre): Route description (e.g., "Downtown Route", "North Zone")
+- **Latitude** (latitud): GPS coordinates of origin point (usually the bakery)
+- **Longitude** (longitud): GPS coordinates of origin point
+- **Driver ID** (id_driver): Assigned driver for this route
+
+### Route-Client Associations
+
+Clients are associated with routes through the **RutaCliente** entity, which tracks:
+
+- Which clients belong to each route
+- The delivery sequence/order for each client
+- Client-specific delivery preferences
+
+### Creating a Delivery Route
+
+<Steps>
+  <Step title="Access Routes">
+    Navigate to **Dashboard > Deliveries > Routes**
+  </Step>
+  
+  <Step title="Click New Route">
+    Click the **Create Route** button
+  </Step>
+  
+  <Step title="Enter Route Details">
+    - Route name (e.g., "East Zone - Morning")
+    - Origin coordinates (your bakery/warehouse location)
+    - Use Google Maps to get accurate GPS coordinates
+  </Step>
+  
+  <Step title="Assign Driver">
+    Select a driver from the dropdown menu
+    - Only users with "Driver" role appear
+    - Each route should have one primary driver
+  </Step>
+  
+  <Step title="Add Clients to Route">
+    - Click **Add Client**
+    - Select clients from your client list
+    - System uses client GPS coordinates for optimization
+  </Step>
+  
+  <Step title="Optimize Route Order">
+    - Click **Optimize Route** to calculate most efficient sequence
+    - System considers:
+      - Distance between stops
+      - Traffic patterns
+      - Client time windows (if configured)
+    - Review and adjust order manually if needed
+  </Step>
+  
+  <Step title="Save Route">
+    Click **Save Route** to finalize configuration
+  </Step>
+</Steps>
+
+<Note>
+  Route optimization uses OR-Tools library to calculate the shortest path visiting all clients exactly once (Traveling Salesman Problem).
+</Note>
+
+### Managing Routes
+
+The Routes dashboard displays:
+
+| Column | Description |
+|--------|-------------|
+| **Route Name** | Descriptive route identifier |
+| **Driver** | Assigned driver name |
+| **Clients** | Number of clients on this route |
+| **Status** | Active, Inactive, or In Progress |
+| **Last Run** | Date of most recent delivery |
+| **Actions** | Edit, View Details, Duplicate |
+
+### Editing Routes
+
+<Accordion title="How to edit an existing route">
+  1. Find the route in the Routes table
+  2. Click the **Edit** button
+  3. Modify route details:
+     - Change route name
+     - Reassign to different driver
+     - Add or remove clients
+     - Reorder delivery sequence
+  4. Click **Save Changes**
+  5. Notify driver of changes
+</Accordion>
+
+## Delivery Records
+
+### Delivery Information
+
+Each delivery (RegistroEntrega) records:
+
+- **ID**: Unique delivery identifier
+- **Type** (tipo): TipoMovimiento (ENTREGA, DEVOLUCION, etc.)
+- **Order ID** (id_pedido): Associated order
+- **Client ID** (id_cliente): Which client received delivery
+- **Delivery Time** (hora_entregada): Timestamp of delivery
+- **Corriente Delivered** (corriente_entregado): Kg of regular products delivered
+- **Especial Delivered** (especial_entregado): Kg of premium products delivered
+- **Corriente Amount** (monto_corriente): Cost of regular products
+- **Especial Amount** (monto_especial): Cost of premium products
+- **Total Amount** (monto_total): Total delivery value
+- **Comments** (comentario): Delivery notes or issues
+
+### Movement Types (TipoMovimiento)
+
+<CardGroup cols={2}>
+  <Card title="ENTREGA" icon="box-check">
+    Standard delivery of products to client
+  </Card>
+  <Card title="DEVOLUCION" icon="rotate-left">
+    Return of products from client (damaged, excess, etc.)
+  </Card>
+  <Card title="AJUSTE" icon="sliders">
+    Inventory adjustment or correction
+  </Card>
+  <Card title="REPOSICION" icon="arrow-rotate-right">
+    Replacement delivery for quality issues
+  </Card>
+</CardGroup>
+
+### Recording a Delivery
+
+<Steps>
+  <Step title="Start Delivery Session">
+    Driver opens mobile app or dashboard:
+    - Select assigned route for today
+    - Click **Start Deliveries**
+    - System shows clients in optimal order
+  </Step>
+  
+  <Step title="Navigate to Client">
+    - System displays client address and GPS location
+    - Driver follows navigation to client location
+  </Step>
+  
+  <Step title="Deliver Products">
+    Upon arrival at client:
+    - Click **Record Delivery**
+    - Enter quantities delivered:
+      - Kg Corriente (regular products)
+      - Kg Especial (premium products)
+    - System calculates amount using client's custom pricing
+  </Step>
+  
+  <Step title="Add Delivery Notes">
+    - Add any comments (e.g., "Left at back door")
+    - Note any issues or special circumstances
+    - Capture signature (optional, future feature)
+  </Step>
+  
+  <Step title="Complete Delivery">
+    - Click **Complete**
+    - System records timestamp
+    - Move to next client on route
+  </Step>
+</Steps>
+
+### Viewing Delivery History
+
+The Deliveries page shows all completed deliveries:
+
+- **Filter by Date**: View deliveries for specific day/week/month
+- **Filter by Route**: See all deliveries for a particular route
+- **Filter by Client**: View all deliveries to a specific client
+- **Filter by Driver**: See all deliveries by a particular driver
+
+<Tip>
+  Use delivery history to identify patterns, track driver performance, and analyze client purchasing behavior.
+</Tip>
+
+## Delivery Scheduling
+
+### Scheduled Deliveries (ProgramacionEntrega)
+
+Plan future deliveries in advance using the scheduling system:
+
+**ProgramacionEntrega Fields:**
+- **ID**: Unique schedule identifier
+- **Route ID** (id_ruta): Which route this delivery belongs to
+- **Client ID** (id_cliente): Which client will receive delivery
+- **Batch ID** (id_lote): Which production batch to deliver from
+- **Scheduled Date** (fecha_programada): When delivery should occur
+- **Product Name** (nombreProducto): Product to deliver
+- **Product Quantity** (cantidadProducto): Number of units
+- **Kg Corriente Scheduled** (kg_corriente_programado): Scheduled kg of regular products
+- **Kg Especial Scheduled** (kg_especial_programado): Scheduled kg of premium products
+- **Order** (orden): Sequence position in route
+- **Status** (estado): PENDIENTE, COMPLETADO, CANCELADO
+- **Created** (fecha_creacion): When schedule was created
+- **Updated** (fecha_actualizacion): Last modification time
+
+### Creating a Delivery Schedule
+
+<Steps>
+  <Step title="Access Scheduling">
+    Go to **Dashboard > Deliveries > Scheduled Deliveries**
+  </Step>
+  
+  <Step title="Select Date">
+    Choose the date for scheduled deliveries
+  </Step>
+  
+  <Step title="Select Route">
+    Choose which route to schedule deliveries for
+  </Step>
+  
+  <Step title="Plan Deliveries">
+    For each client on the route:
+    - Select products to deliver
+    - Enter quantities (kg or units)
+    - System shows available inventory batches
+    - Choose which batch to deliver from
+  </Step>
+  
+  <Step title="Review Schedule">
+    - Verify all clients are included
+    - Check total quantities against inventory
+    - Ensure driver availability
+  </Step>
+  
+  <Step title="Save Schedule">
+    Click **Schedule Deliveries**
+    - System reserves inventory from selected batches
+    - Driver can see scheduled deliveries in app
+    - Status set to PENDIENTE
+  </Step>
+</Steps>
+
+### Delivery Status Workflow
+
+```
+PENDIENTE → EN_RUTA → COMPLETADO
+                    ↓
+                 CANCELADO
+```
+
+- **PENDIENTE**: Scheduled but not started
+- **EN_RUTA**: Driver is actively delivering
+- **COMPLETADO**: Delivery confirmed and recorded
+- **CANCELADO**: Delivery cancelled (client closed, no inventory, etc.)
+
+## Route Optimization
+
+### How Route Optimization Works
+
+Fluxora uses advanced algorithms to calculate optimal delivery routes:
+
+<Steps>
+  <Step title="Input Data">
+    System collects:
+    - Origin point (bakery/warehouse GPS)
+    - All client GPS coordinates on route
+    - Distance matrix between all points
+  </Step>
+  
+  <Step title="Calculate Distances">
+    System computes straight-line distances between all locations
+  </Step>
+  
+  <Step title="Optimize Sequence">
+    OR-Tools solver finds shortest path:
+    - Starts at origin
+    - Visits each client exactly once
+    - Returns to origin
+    - Minimizes total distance traveled
+  </Step>
+  
+  <Step title="Present Solution">
+    System shows:
+    - Optimized client order
+    - Total route distance
+    - Estimated travel time
+    - Map visualization
+  </Step>
+  
+  <Step title="Allow Adjustments">
+    User can manually adjust:
+    - Client priorities
+    - Time window constraints
+    - Driver preferences
+  </Step>
+</Steps>
+
+<Note>
+  Route optimization can reduce delivery time by 20-40% compared to unoptimized routes.
+</Note>
+
+### Benefits of Route Optimization
+
+<CardGroup cols={2}>
+  <Card title="Reduced Fuel Costs" icon="gas-pump">
+    Shorter routes mean less fuel consumption and lower operating costs
+  </Card>
+  
+  <Card title="Faster Deliveries" icon="gauge-high">
+    Optimized routes reduce total delivery time by up to 40%
+  </Card>
+  
+  <Card title="More Deliveries" icon="list-check">
+    Efficient routes allow drivers to complete more deliveries per day
+  </Card>
+  
+  <Card title="Better Service" icon="star">
+    Reliable, timely deliveries improve customer satisfaction
+  </Card>
+</CardGroup>
+
+## Delivery Session (Sesión de Reparto)
+
+### Session Management
+
+Each delivery day, drivers start a delivery session (SesionReparto) which tracks:
+
+- Session start time
+- Route being executed
+- Current progress (clients visited)
+- Real-time status updates
+- Session end time
+
+### Session Workflow
+
+<Steps>
+  <Step title="Start Session">
+    Driver logs in and clicks **Start Route**
+    - Session created with start time
+    - All scheduled deliveries loaded
+    - Status changes to "In Progress"
+  </Step>
+  
+  <Step title="Execute Deliveries">
+    Driver follows route order:
+    - Navigate to each client
+    - Complete delivery
+    - Record quantities and amounts
+    - Move to next client
+  </Step>
+  
+  <Step title="Handle Issues">
+    If problems occur:
+    - Client not available → reschedule
+    - Insufficient product → partial delivery
+    - Wrong address → update client info
+    - All issues logged in comments
+  </Step>
+  
+  <Step title="End Session">
+    When all deliveries complete:
+    - Click **End Route**
+    - System generates session summary
+    - Inventory updated
+    - All deliveries marked COMPLETADO
+  </Step>
+</Steps>
+
+## Delivery Summary (Resumen de Entrega)
+
+### Session Summary Report
+
+After completing a delivery session, the system generates a summary (ResumenEntrega):
+
+- **Total Deliveries**: Number of clients visited
+- **Successful Deliveries**: Completed deliveries
+- **Failed Deliveries**: Clients not reached
+- **Total Kg Delivered**: Corriente + Especial
+- **Total Revenue**: Sum of all delivery amounts
+- **Duration**: Total time from start to end
+- **Distance Traveled**: Calculated from GPS
+- **Pending Items**: Scheduled deliveries not completed
+
+<Tip>
+  Use delivery summaries to track driver performance, route efficiency, and revenue per route.
+</Tip>
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Setting up a new delivery route">
+    1. Go to **Dashboard > Deliveries > Routes**
+    2. Click **New Route**
+    3. Name the route (e.g., "South Zone - AM")
+    4. Enter origin GPS coordinates (bakery location)
+    5. Assign a driver from dropdown
+    6. Add clients to the route:
+       - Click **Add Client**
+       - Select 5-10 clients in same geographic area
+    7. Click **Optimize Route**
+    8. Review optimized order
+    9. Save route
+    10. Schedule first delivery for tomorrow
+  </Accordion>
+
+  <Accordion title="Scheduling weekly deliveries">
+    1. Go to **Dashboard > Deliveries > Scheduled Deliveries**
+    2. Select date range (e.g., next Monday-Friday)
+    3. For each day:
+       - Select route
+       - Review client list
+       - Enter standard quantities for each client
+       - Select inventory batches
+       - Save schedule
+    4. Verify total quantities needed
+    5. Coordinate with production team
+    6. Drivers see schedules in their mobile app
+  </Accordion>
+
+  <Accordion title="Handling a missed delivery">
+    1. Driver reports client was closed/unavailable
+    2. In delivery app, click **Client Unavailable**
+    3. Add note explaining situation
+    4. Select reschedule option:
+       - Later today (if time permits)
+       - Tomorrow morning
+       - Specific date
+    5. System creates new scheduled delivery
+    6. Products returned to inventory
+    7. Client notified of rescheduled delivery
+  </Accordion>
+
+  <Accordion title="Reassigning route to different driver">
+    1. Go to **Routes** page
+    2. Find the route to reassign
+    3. Click **Edit**
+    4. Change driver in dropdown
+    5. Save changes
+    6. System notifies:
+       - Old driver: route removed from schedule
+       - New driver: route added to schedule
+    7. Any scheduled deliveries now assigned to new driver
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Consistent Routes" icon="route">
+    Keep routes stable so drivers learn client locations and preferences
+  </Card>
+  
+  <Card title="Route Size" icon="hashtag">
+    Aim for 8-15 clients per route for optimal efficiency
+  </Card>
+  
+  <Card title="Geographic Grouping" icon="map">
+    Group clients by geographic proximity to minimize travel time
+  </Card>
+  
+  <Card title="Time Windows" icon="clock">
+    Respect client delivery time preferences (morning vs afternoon)
+  </Card>
+  
+  <Card title="Buffer Time" icon="hourglass">
+    Add 10-15 minutes buffer between deliveries for unexpected delays
+  </Card>
+  
+  <Card title="Daily Reviews" icon="clipboard">
+    Review delivery summaries daily to identify issues quickly
+  </Card>
+</CardGroup>
+
+## Tips & Tricks
+
+- **Route Templates**: Create template routes for each day of the week and adjust as needed
+- **GPS Accuracy**: Always verify client GPS coordinates are accurate before adding to routes
+- **Communication**: Use delivery comments to communicate between drivers and office staff
+- **Backup Drivers**: Cross-train drivers on multiple routes for coverage during absences
+- **Mobile Access**: Drivers should use the mobile app for real-time updates and easier recording
+- **Regular Optimization**: Re-optimize routes quarterly as clients are added or removed
+
+## Related Features
+
+- [Client Management](/features/client-management) - Manage client addresses and GPS coordinates
+- [Inventory Management](/features/inventory-management) - Coordinate deliveries with production
+- [Reporting](/features/reporting) - Analyze delivery performance and trends
+- [User Management](/features/user-management) - Manage driver accounts and permissions

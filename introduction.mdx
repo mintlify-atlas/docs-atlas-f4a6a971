@@ -1,0 +1,105 @@
+---
+title: "Introduction"
+description: "A comprehensive microservices-based management system for client, inventory, delivery, and user operations"
+---
+
+# Welcome to Fluxora
+
+Fluxora is a comprehensive enterprise management system built on modern microservices architecture. It provides role-based access control, real-time dashboards, and seamless integration across client, inventory, delivery, and user management workflows.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Microservices Architecture" icon="layer-group" href="/architecture">
+    Built with Spring Boot and Eureka service discovery for scalable, resilient operations
+  </Card>
+  <Card title="Role-Based Access Control" icon="shield-halved" href="/features/user-management">
+    JWT authentication with Admin, Producer, and Driver roles
+  </Card>
+  <Card title="Inventory Management" icon="boxes-stacked" href="/features/inventory-management">
+    Complete system for products, recipes, raw materials, and production batches
+  </Card>
+  <Card title="Delivery Tracking" icon="truck-fast" href="/features/delivery-management">
+    Route optimization and real-time delivery status tracking
+  </Card>
+  <Card title="Client Management" icon="users" href="/features/client-management">
+    Comprehensive client profiles with delivery route integration
+  </Card>
+  <Card title="Real-Time Dashboards" icon="chart-line" href="/features/reporting">
+    Interactive charts and reporting with Chart.js visualization
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Get Started" icon="rocket" href="/quickstart">
+    Set up Fluxora and create your first user in minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the REST API documentation
+  </Card>
+  <Card title="Architecture Overview" icon="diagram-project" href="/architecture">
+    Understand the microservices architecture
+  </Card>
+  <Card title="Deployment Guide" icon="server" href="/deployment/docker">
+    Deploy with Docker or Render
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+Fluxora is built with modern, industry-standard technologies:
+
+- **Backend**: Spring Boot 3.5, Spring Cloud, Netflix Eureka, Spring Security
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Database**: PostgreSQL 15 with separate databases per microservice
+- **Authentication**: JWT with role-based access control
+- **Containerization**: Docker and Docker Compose
+- **Cloud Deployment**: Render with managed PostgreSQL
+
+## Architecture Overview
+
+Fluxora follows a microservices architecture pattern with the following services:
+
+- **API Gateway** (port 8080): Single entry point routing requests to microservices
+- **Eureka Server** (port 8761): Service discovery and registration
+- **Usuario Service** (port 8081): User authentication and management
+- **Inventario Service** (port 8082): Inventory, products, recipes, and raw materials
+- **Cliente Service** (port 8083): Client management and profiles
+- **Entrega Service** (port 8084): Delivery tracking and route management
+- **Frontend** (port 3000): Next.js application with role-based dashboards
+
+Each microservice has its own PostgreSQL database, ensuring data isolation and independent scalability.
+
+## Who Should Use Fluxora
+
+Fluxora is designed for:
+
+- **Manufacturing and Production Companies**: Track inventory, recipes, raw materials, and production batches
+- **Delivery and Logistics Operations**: Manage routes, drivers, and real-time delivery tracking
+- **Client-Centric Businesses**: Maintain comprehensive client profiles and delivery preferences
+- **Teams Requiring Role-Based Access**: Separate admin, producer, and driver workflows
+
+## Next Steps
+
+<Steps>
+  <Step title="Quick Start">
+    Follow the [Quickstart Guide](/quickstart) to set up Fluxora locally with Docker
+  </Step>
+  <Step title="Configure Authentication">
+    Learn how to [configure JWT authentication](/getting-started/authentication) and create users
+  </Step>
+  <Step title="Explore Features">
+    Discover how to use [core features](/features/user-management) for your business needs
+  </Step>
+  <Step title="Deploy to Production">
+    Review the [deployment guide](/deployment/docker) for Docker or Render deployment
+  </Step>
+</Steps>
+
+## Support and Community
+
+- **GitHub**: [FelidevX/Fluxora](https://github.com/FelidevX/Fluxora)
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/FelidevX/Fluxora/issues)
+- **Documentation**: Explore this documentation site for comprehensive guides and API references

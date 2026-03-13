@@ -1,0 +1,154 @@
+---
+title: "Inventario Service"
+description: "Inventory and production management microservice"
+---
+
+# Inventario Service
+
+The Inventario Service manages products, raw materials, recipes, and production batches in Fluxora.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Port" icon="network-wired">
+    8082
+  </Card>
+  <Card title="Database" icon="database">
+    inventario_db (PostgreSQL)
+  </Card>
+  <Card title="Spring Boot" icon="leaf">
+    3.5.4
+  </Card>
+  <Card title="Java" icon="mug-hot">
+    21
+  </Card>
+</CardGroup>
+
+## Responsibilities
+
+- Product catalog management
+- Raw material tracking
+- Recipe management
+- Production batch tracking (FIFO)
+- Inventory calculations
+- Waste management (mermas)
+- Purchase order tracking
+- Production planning
+
+## Main Entities
+
+### Producto
+Finished products:
+- Product details (name, type, price)
+- Stock levels
+- Production batches
+
+### MateriaPrima
+Raw materials:
+- Material details
+- Current stock
+- Unit of measurement
+- Purchase history
+
+### Receta
+Product recipes:
+- Ingredient requirements
+- Quantities needed
+- Recipe type (simple/master)
+
+### LoteProducto
+Production batches:
+- Batch tracking
+- FIFO inventory
+- Cost calculations
+- Expiration dates
+
+### LoteMateriaPrima
+Material batches:
+- Material batch tracking
+- FIFO for materials
+- Purchase tracking
+
+## Controllers
+
+The service has 10+ controllers:
+
+1. **ProductoController**: Product CRUD
+2. **LoteProductoController**: Production batch management
+3. **MateriaPrimaController**: Raw material management
+4. **RecetaController**: Recipe management
+5. **RecetaMaestraController**: Master recipes
+6. **CompraMateriaPrimaController**: Purchase orders
+7. **InsumoProduccionController**: Production inputs
+8. **MermaProductoController**: Waste tracking
+9. **LoteController**: Batch operations
+10. **ReporteInventarioController**: Inventory reports
+
+For detailed endpoint documentation, see [Inventario Endpoints](/api/endpoints/inventario).
+
+## Database Schema
+
+Complex schema with 10+ tables:
+
+**productos:**
+- id, nombre, tipo, precio_venta
+
+**materias_primas:**
+- id, nombre, unidad_medida, stock_actual
+
+**recetas:**
+- id, producto_id, tipo_receta
+
+**lotes_producto:**
+- id, producto_id, cantidad, costo_produccion, fecha_produccion, fecha_vencimiento
+
+**lotes_materia_prima:**
+- id, materia_prima_id, cantidad, fecha_compra, fecha_vencimiento
+
+**insumos_produccion:**
+- Links materials to production batches
+
+**merma_producto:**
+- Waste tracking records
+
+## Dependencies
+
+Key dependencies:
+- Spring Boot Starter Web
+- Spring Boot Starter Data JPA
+- Spring Cloud Eureka Client
+- PostgreSQL Driver
+- MapStruct 1.6.3
+- Lombok
+
+## Integration
+
+Integrates with:
+- **Eureka Server**: Service registration
+- **API Gateway**: Routes from `/api/inventario/**`
+- **PostgreSQL**: Data persistence
+
+## Key Features
+
+### FIFO Inventory
+
+Implements First-In-First-Out for:
+- Product batches
+- Material batches
+- Automatic stock deduction from oldest batches
+
+### Cost Calculation
+
+Automatic cost calculation based on:
+- Material costs from purchases
+- Recipe requirements
+- Production quantities
+
+### Stock Alerts
+
+Monitors:
+- Low stock levels
+- Expiring batches
+- Critical materials
+
+For more details, see [Inventory Management](/features/inventory-management).

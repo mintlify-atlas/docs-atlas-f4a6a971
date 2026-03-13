@@ -1,0 +1,293 @@
+---
+title: API Overview
+description: Comprehensive guide to the Fluxora microservices API architecture, design principles, and usage conventions
+---
+
+## Introduction
+
+Fluxora provides a RESTful API built on a microservices architecture. The API enables comprehensive management of inventory, deliveries, clients, and users through a unified gateway interface.
+
+<Note>
+All API requests are routed through the API Gateway on port 8080, which handles service discovery, load balancing, and CORS configuration.
+</Note>
+
+## Architecture Overview
+
+Fluxora implements a distributed microservices architecture with the following components:
+
+<Card title="Microservices Structure" icon="diagram-project">
+- **API Gateway** (Port 8080) - Central entry point for all API requests
+- **Eureka Server** (Port 8761) - Service discovery and registration
+- **Usuario Service** (Port 8081) - Authentication and user management
+- **Inventario Service** (Port 8082) - Inventory, products, and raw materials
+- **Cliente Service** (Port 8083) - Client management
+- **Entrega Service** (Port 8084) - Delivery routes and logistics
+</Card>
+
+## Base URLs
+
+All API requests should be made through the API Gateway:
+
+```
+Base URL: http://localhost:8080
+Production: https://api.fluxora.uno
+```
+
+### Service Routes
+
+The Gateway routes requests to specific microservices based on path prefixes:
+
+| Path Prefix | Service | Port | Description |
+|-------------|---------|------|-------------|
+| `/api/usuarios/**` | Usuario Service | 8081 | Authentication & users |
+| `/api/inventario/**` | Inventario Service | 8082 | Inventory management |
+| `/api/clientes/**` | Cliente Service | 8083 | Client management |
+| `/api/entregas/**` | Entrega Service | 8084 | Delivery operations |
+
+## Request Format
+
+### Content Type
+
+All requests must use JSON format:
+
+```bash
+Content-Type: application/json
+```
+
+### Authentication
+
+Most endpoints require authentication via JWT Bearer token:
+
+```bash
+Authorization: Bearer <your_jwt_token>
+```
+
+See [Authentication](/api/authentication) for details on obtaining and using tokens.
+
+## Response Format
+
+### Success Responses
+
+Successful API responses follow standard REST conventions:
+
+**Single Resource:**
+
+```json
+{
+  "id": 1,
+  "nombre": "Product Name",
+  "descripcion": "Product description",
+  "createdAt": "2026-03-13T10:00:00"
+}
+```
+
+**Collection:**
+
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Item 1"
+  },
+  {
+    "id": 2,
+    "nombre": "Item 2"
+  }
+]
+```
+
+**Operation Result:**
+
+```json
+{
+  "message": "Operation completed successfully"
+}
+```
+
+### Error Responses
+
+Fluxora uses a standardized error response format across all microservices:
+
+```json
+{
+  "codigo": "ERROR_CODE",
+  "mensaje": "Human-readable error message",
+  "detalles": {},
+  "timestamp": "2026-03-13T10:30:00"
+}
+```
+
+<ResponseField name="codigo" type="string" required>
+  Error code identifier (e.g., `STOCK_ERROR`, `NOT_FOUND`, `INTERNAL_ERROR`)
+</ResponseField>
+
+<ResponseField name="mensaje" type="string" required>
+  Human-readable error description
+</ResponseField>
+
+<ResponseField name="detalles" type="object">
+  Additional context or validation details (optional)
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+  ISO 8601 timestamp of when the error occurred
+</ResponseField>
+
+## HTTP Status Codes
+
+Fluxora APIs use standard HTTP status codes:
+
+| Status Code | Description | Use Case |
+|-------------|-------------|----------|
+| `200 OK` | Success | Successful GET, PUT, DELETE |
+| `201 Created` | Resource created | Successful POST |
+| `204 No Content` | Success with no body | Successful DELETE |
+| `400 Bad Request` | Invalid request | Validation errors, business rule violations |
+| `401 Unauthorized` | Authentication failed | Invalid or missing token |
+| `403 Forbidden` | Insufficient permissions | Valid token but wrong role |
+| `404 Not Found` | Resource not found | Requested resource doesn't exist |
+| `409 Conflict` | Business rule violation | Stock errors, duplicate entries |
+| `500 Internal Server Error` | Server error | Unexpected system errors |
+
+### Error Code Examples
+
+**Business Rule Violation (409 Conflict):**
+
+```json
+{
+  "codigo": "STOCK_ERROR",
+  "mensaje": "Stock insuficiente para completar la operación",
+  "detalles": [
+    {
+      "producto": "Harina",
+      "requerido": 100,
+      "disponible": 50
+    }
+  ],
+  "timestamp": "2026-03-13T10:30:00"
+}
+```
+
+**Resource Not Found (404):**
+
+```json
+{
+  "codigo": "NOT_FOUND",
+  "mensaje": "Producto con ID 123 no encontrado",
+  "timestamp": "2026-03-13T10:30:00"
+}
+```
+
+**Authentication Error (401):**
+
+```json
+{
+  "error": "Token expirado"
+}
+```
+
+## Rate Limiting
+
+<Warning>
+Rate limiting is currently not enforced but may be implemented in future versions. Recommended best practice is to limit requests to 100 per minute per client.
+</Warning>
+
+## API Versioning
+
+The current API version is embedded in the service context paths:
+
+```
+/api/usuarios/*
+/api/inventario/*
+/api/clientes/*
+/api/entregas/*
+```
+
+Future major versions may introduce versioned paths (e.g., `/api/v2/usuarios/*`).
+
+## CORS Configuration
+
+The API Gateway is configured to accept requests from:
+
+- `http://localhost:3000` (Development)
+- `https://fluxora.uno` (Production)
+
+**Allowed Methods:** GET, POST, PUT, PATCH, DELETE, OPTIONS
+
+**Allowed Headers:** Authorization, Content-Type, Accept, X-Requested-With
+
+**Credentials:** Allowed (cookies and authorization headers)
+
+**Max Age:** 3600 seconds (1 hour)
+
+## Best Practices
+
+### Request Guidelines
+
+1. **Always include Content-Type header** for POST/PUT requests
+2. **Use Bearer token authentication** for protected endpoints
+3. **Handle token expiration** gracefully and refresh when needed
+4. **Validate input** on the client side before sending requests
+5. **Use appropriate HTTP methods** (GET for reads, POST for creates, PUT for updates, DELETE for removes)
+
+### Error Handling
+
+```javascript
+try {
+  const response = await fetch('http://localhost:8080/api/productos', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    console.error(`Error ${error.codigo}: ${error.mensaje}`);
+    
+    if (response.status === 401) {
+      // Handle token expiration
+      refreshToken();
+    }
+  }
+  
+  const data = await response.json();
+  return data;
+} catch (error) {
+  console.error('Network error:', error);
+}
+```
+
+### Security Considerations
+
+<Card title="Security Best Practices" icon="shield">
+- Store JWT tokens securely (HttpOnly cookies or secure storage)
+- Never expose tokens in URLs or logs
+- Implement token refresh before expiration
+- Use HTTPS in production environments
+- Validate and sanitize all user input
+- Handle authentication errors appropriately
+</Card>
+
+## Pagination
+
+<Note>
+Currently, most list endpoints return all results without pagination. For large datasets, consider implementing client-side filtering or requesting pagination support.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn how to authenticate and manage JWT tokens
+  </Card>
+  <Card title="API Gateway" icon="network-wired" href="/api/gateway">
+    Understand gateway routing and configuration
+  </Card>
+  <Card title="Inventory API" icon="boxes-stacked" href="/api/endpoints/inventario">
+    Manage products, raw materials, and stock
+  </Card>
+  <Card title="Delivery API" icon="truck" href="/api/endpoints/entregas">
+    Handle delivery routes and logistics
+  </Card>
+</CardGroup>

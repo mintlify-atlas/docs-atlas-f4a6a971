@@ -1,0 +1,449 @@
+---
+title: 'Inventory Management'
+description: 'Track raw materials, manage recipes, plan production, and monitor inventory levels'
+icon: 'warehouse'
+---
+
+## Overview
+
+Fluxora's Inventory Management system provides comprehensive tools for tracking raw materials, creating production recipes, managing production batches, and monitoring inventory levels in real-time. The system ensures you always have the materials needed for production while minimizing waste.
+
+## System Architecture
+
+The Inventory module is organized into three main components:
+
+<CardGroup cols={3}>
+  <Card title="Raw Materials" icon="wheat" href="#raw-materials">
+    Catalog of ingredients and materials used in production
+  </Card>
+  <Card title="Recipes" icon="book-open" href="#recipes">
+    Production formulas that define ingredient requirements
+  </Card>
+  <Card title="Production & Batches" icon="industry" href="#production-batches">
+    Track production runs and finished product inventory
+  </Card>
+</CardGroup>
+
+## Raw Materials
+
+### Material Catalog
+
+Raw materials (materias primas) are the basic ingredients used in your recipes. Each material includes:
+
+- **ID**: Unique identifier (auto-generated)
+- **Name** (nombre): Material name (e.g., "Flour", "Sugar", "Eggs")
+- **Unit** (unidad): Measurement unit (kg, liters, units)
+
+### Material Batches (Lotes)
+
+Instead of tracking a single quantity, Fluxora uses a batch system where each purchase is recorded separately:
+
+**LoteMateriaPrima Fields:**
+- **Quantity**: Amount purchased in this batch
+- **Cost**: Total cost of the batch
+- **Unit Cost**: Calculated cost per unit
+- **Purchase Date**: When the material was acquired
+- **Expiration Date**: When the material expires (if applicable)
+- **Status**: Available, depleted, or expired
+
+### Managing Raw Materials
+
+<Steps>
+  <Step title="Access Materials">
+    Navigate to **Dashboard > Inventory > Raw Materials**
+  </Step>
+  
+  <Step title="Add New Material">
+    Click **New Material** and enter:
+    - Material name
+    - Measurement unit (kg, L, units)
+  </Step>
+  
+  <Step title="Record Purchases">
+    When you purchase materials:
+    1. Find the material in the catalog
+    2. Click **Record Purchase**
+    3. Enter quantity, cost, and purchase date
+    4. Add expiration date if applicable
+    5. Save the batch
+  </Step>
+  
+  <Step title="Track Usage">
+    Materials are automatically consumed when you create production batches
+  </Step>
+</Steps>
+
+<Note>
+  The batch system enables accurate cost tracking and FIFO (First In, First Out) inventory management.
+</Note>
+
+## Recipes
+
+### Recipe Structure
+
+Recipes define the ingredients needed to produce specific products. Fluxora supports two recipe types:
+
+#### 1. Simple Recipes (Receta)
+
+Basic ingredient list for a product:
+
+- **Product ID** (productoId): Which product this recipe creates
+- **Material ID** (materiaPrimaId): Which raw material is needed
+- **Required Quantity** (cantidadNecesaria): How much of the material
+- **Unit** (unidad): Measurement unit
+
+#### 2. Master Recipes (RecetaMaestra)
+
+Complex recipes with additional details:
+
+- **Recipe name**: Descriptive name
+- **Category**: Product category (panaderia, pasteleria, etc.)
+- **Unit price**: Selling price per unit
+- **Multiple ingredients**: List of all required materials
+
+### Creating a Recipe
+
+<Steps>
+  <Step title="Navigate to Recipes">
+    Go to **Dashboard > Inventory > Recipes**
+  </Step>
+  
+  <Step title="Click Create Recipe">
+    Click **New Recipe** button
+  </Step>
+  
+  <Step title="Enter Recipe Details">
+    - Recipe name (e.g., "White Bread - 1kg")
+    - Product category
+    - Selling price per unit
+  </Step>
+  
+  <Step title="Add Ingredients">
+    For each ingredient:
+    1. Select raw material from dropdown
+    2. Enter required quantity
+    3. Specify unit of measurement
+    4. Click **Add Ingredient**
+  </Step>
+  
+  <Step title="Save Recipe">
+    Review all ingredients and click **Save Recipe**
+  </Step>
+</Steps>
+
+### Recipe Example
+
+**Recipe: White Bread (1 kg batch)**
+
+| Ingredient | Quantity | Unit |
+|------------|----------|------|
+| Wheat Flour | 600 | g |
+| Water | 350 | ml |
+| Yeast | 15 | g |
+| Salt | 12 | g |
+| Sugar | 20 | g |
+| Vegetable Oil | 30 | ml |
+
+<Tip>
+  Standardize your recipes to ensure consistent quality and accurate cost calculations.
+</Tip>
+
+## Production & Batches
+
+### Products
+
+Products (productos) are the finished goods you manufacture and sell:
+
+**Product Fields:**
+- **ID**: Unique identifier
+- **Name** (nombre): Product name
+- **Selling Price** (precioVenta): Price per unit
+- **Product Type** (tipoProducto): CORRIENTE, ESPECIAL, or NO_APLICA
+- **Category** (categoria): panaderia, pasteleria, etc.
+- **Status** (estado): activo or descontinuado
+- **Master Recipe ID** (recetaMaestraId): Associated recipe (optional)
+
+### Product Types
+
+<CardGroup cols={3}>
+  <Card title="CORRIENTE" icon="bread-slice">
+    Regular/standard bakery products (e.g., everyday bread)
+  </Card>
+  <Card title="ESPECIAL" icon="cake">
+    Premium/specialty products (e.g., pastries, cakes)
+  </Card>
+  <Card title="NO_APLICA" icon="box">
+    Products outside bakery categories
+  </Card>
+</CardGroup>
+
+### Production Batches (Lotes de Producto)
+
+When you produce items, you create production batches (LoteProducto):
+
+**Batch Fields:**
+- **Product ID** (productoId): Which product was produced
+- **Quantity Produced** (cantidadProducida): Total units made
+- **Current Stock** (stockActual): Remaining inventory
+- **Total Production Cost** (costoProduccionTotal): Sum of material costs
+- **Unit Cost** (costoUnitario): Cost per unit produced
+- **Production Date** (fechaProduccion): When batch was made
+- **Expiration Date** (fechaVencimiento): When batch expires
+- **Status** (estado): disponible, agotado, or vencido
+
+### Creating a Production Batch
+
+<Steps>
+  <Step title="Access Production">
+    Navigate to **Dashboard > Inventory > Production**
+  </Step>
+  
+  <Step title="Select Product">
+    Choose which product you're producing from the dropdown
+  </Step>
+  
+  <Step title="Enter Batch Details">
+    - Quantity to produce (e.g., 100 kg)
+    - Production date (default: today)
+    - Expiration date (if applicable)
+  </Step>
+  
+  <Step title="Review Material Requirements">
+    The system calculates required materials based on the recipe:
+    - Shows what materials are needed
+    - Indicates if you have sufficient stock
+    - Warns about material shortages
+  </Step>
+  
+  <Step title="Confirm Production">
+    Click **Start Production**:
+    - Materials are consumed from inventory
+    - Production cost is calculated automatically
+    - New batch is added to product inventory
+  </Step>
+</Steps>
+
+### Cost Calculation
+
+Fluxora automatically calculates production costs:
+
+```
+Total Production Cost = Sum of (Material Quantity × Material Unit Cost)
+Unit Cost = Total Production Cost ÷ Quantity Produced
+Unit Profit = Selling Price - Unit Cost
+```
+
+<Note>
+  The system uses FIFO (First In, First Out) to consume materials, ensuring older batches are used first.
+</Note>
+
+## Inventory Tracking
+
+### Stock Levels
+
+The Inventory Dashboard displays real-time stock levels for:
+
+- **Raw Materials**: Total available quantity across all batches
+- **Products**: Total available quantity across all production batches
+- **Low Stock Alerts**: Materials or products below threshold
+- **Expiring Soon**: Items approaching expiration date
+
+### Viewing Inventory
+
+The main inventory page shows:
+
+<CardGroup cols={2}>
+  <Card title="Material Inventory" icon="boxes-stacked">
+    - Material name and unit
+    - Total quantity available
+    - Number of active batches
+    - Oldest batch date
+  </Card>
+  
+  <Card title="Product Inventory" icon="warehouse">
+    - Product name and category
+    - Total stock (kg or units)
+    - Number of active batches
+    - Average cost per unit
+  </Card>
+</CardGroup>
+
+### Inventory Alerts
+
+The system provides automatic notifications for:
+
+- **Low Stock**: When material or product quantity falls below minimum
+- **Expiring Materials**: Materials approaching expiration date (within 7 days)
+- **Expired Batches**: Batches past expiration date
+- **Out of Stock**: Products with zero inventory
+
+## Waste & Loss Management
+
+### Recording Product Loss (Mermas)
+
+When products are damaged, expired, or otherwise lost, record them as mermas:
+
+**MermaProducto Fields:**
+- **Product ID**: Which product was lost
+- **Batch ID**: Which production batch
+- **Quantity Lost**: Amount of waste
+- **Reason**: Why the loss occurred
+- **Date**: When the loss was recorded
+
+<Steps>
+  <Step title="Open Merma Modal">
+    Go to **Dashboard > Inventory > Production > Merma** tab
+  </Step>
+  
+  <Step title="Select Product and Batch">
+    Choose the affected product and specific batch
+  </Step>
+  
+  <Step title="Enter Loss Details">
+    - Quantity lost
+    - Reason (expired, damaged, quality issue)
+    - Additional notes
+  </Step>
+  
+  <Step title="Save Record">
+    System updates:
+    - Batch stock is reduced
+    - Loss is recorded for reporting
+    - Cost of loss is tracked
+  </Step>
+</Steps>
+
+## Production Planning
+
+### Planning Workflow
+
+<Steps>
+  <Step title="Review Orders">
+    Check upcoming delivery orders to understand demand
+  </Step>
+  
+  <Step title="Calculate Needs">
+    Determine how much of each product to produce
+  </Step>
+  
+  <Step title="Check Materials">
+    Verify you have sufficient raw materials
+  </Step>
+  
+  <Step title="Order Materials">
+    Purchase any materials needed for production
+  </Step>
+  
+  <Step title="Schedule Production">
+    Plan production batches to meet delivery schedules
+  </Step>
+  
+  <Step title="Execute Production">
+    Create production batches and update inventory
+  </Step>
+</Steps>
+
+### Production Dashboard
+
+The Production Dashboard shows:
+
+- **Today's Production**: Batches created today
+- **Material Usage**: Materials consumed this week
+- **Cost Analysis**: Production costs by product
+- **Efficiency Metrics**: Waste percentage, production time
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Starting a new production run">
+    1. Go to **Inventory > Production**
+    2. Review current stock levels
+    3. Select product to produce
+    4. Enter quantity needed (based on orders)
+    5. System shows material requirements
+    6. Confirm materials are available
+    7. Click **Start Production**
+    8. Enter production date and expiration
+    9. Save batch - materials consumed, inventory updated
+  </Accordion>
+
+  <Accordion title="Receiving a material shipment">
+    1. Go to **Inventory > Raw Materials**
+    2. Find the material in the catalog
+    3. Click **Record Purchase**
+    4. Enter:
+       - Quantity received
+       - Total cost paid
+       - Purchase date
+       - Supplier (in notes)
+       - Expiration date
+    5. Save - new batch added to inventory
+  </Accordion>
+
+  <Accordion title="Handling expired products">
+    1. Go to **Inventory > Production > Merma**
+    2. Filter by expired batches
+    3. For each expired batch:
+       - Click **Register Loss**
+       - Select "Expired" as reason
+       - Enter quantity to discard
+       - Save record
+    4. Batch status changes to "vencido"
+    5. Stock is reduced accordingly
+  </Accordion>
+
+  <Accordion title="Calculating product profitability">
+    1. Go to production batch details
+    2. View **Unit Cost** (calculated from materials)
+    3. Compare to **Selling Price**
+    4. Calculate: Profit = Selling Price - Unit Cost
+    5. Evaluate if pricing needs adjustment
+    6. Consider:
+       - Material cost changes
+       - Production efficiency
+       - Market competition
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Daily Inventory Checks" icon="clipboard-check">
+    Review stock levels every morning before planning production
+  </Card>
+  
+  <Card title="Accurate Recipes" icon="scale-balanced">
+    Maintain precise recipe measurements for consistent quality and cost accuracy
+  </Card>
+  
+  <Card title="FIFO System" icon="arrow-right-arrow-left">
+    Always use older materials first to minimize expiration losses
+  </Card>
+  
+  <Card title="Regular Audits" icon="magnifying-glass">
+    Conduct monthly physical inventory counts to verify system accuracy
+  </Card>
+  
+  <Card title="Document Losses" icon="file-lines">
+    Always record waste and losses for accurate cost analysis
+  </Card>
+  
+  <Card title="Batch Traceability" icon="barcode">
+    Keep production batches organized for quality control and recalls
+  </Card>
+</CardGroup>
+
+## Tips & Tricks
+
+- **Recipe Scaling**: Create recipes for standard batch sizes (e.g., 10kg, 50kg) and scale as needed
+- **Safety Stock**: Maintain buffer inventory of 10-20% for high-demand products
+- **Material Ordering**: Order materials 3-5 days before needed to ensure timely delivery
+- **Expiration Tracking**: Set system reminders for materials with short shelf life
+- **Cost Monitoring**: Review production costs monthly to identify cost-saving opportunities
+- **Seasonal Planning**: Adjust recipes and inventory for holiday and seasonal demand
+
+## Related Features
+
+- [Delivery Management](/features/delivery-management) - Coordinate production with delivery schedules
+- [Reporting](/features/reporting) - Generate inventory and production reports
+- [Client Management](/features/client-management) - Match production to customer demand

@@ -1,0 +1,715 @@
+---
+title: 'Environment Variables'
+description: 'Complete reference for all environment variables in Fluxora'
+---
+
+## Overview
+
+Fluxora uses environment variables to configure databases, service discovery, JWT authentication, and external integrations. Each microservice and the frontend require specific environment variables.
+
+<Note>
+All microservices use Spring Boot's `spring.config.import=optional:file:.env[.properties]` to load variables from `.env` files.
+</Note>
+
+## Variable Priority
+
+Environment variables are loaded in this order (later takes precedence):
+
+1. `application.properties` defaults
+2. `.env` file in service root
+3. System environment variables
+4. Docker Compose `environment` section
+5. Render environment variables
+
+## Usuario Service
+
+### Database Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `DB_URL` | string | Yes | PostgreSQL JDBC connection URL | `jdbc:postgresql://localhost:5434/usuario_db` |
+| `DB_USERNAME` | string | Yes | Database username | `fluxora` |
+| `DB_PASSWORD` | string | Yes | Database password | `fluxora123` |
+
+### Server Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `SERVER_PORT` | number | Yes | HTTP server port | `8081` |
+
+### Service Discovery
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `EUREKA_URL` | string | Yes | Eureka server endpoint | `http://eureka-server:8761/eureka/` |
+
+### JWT Authentication
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `JWT_SECRET` | string | Yes | Secret key for JWT signing | `my-secret-key-change-in-production` |
+| `JWT_EXP` | number | Yes | Token expiration time (minutes) | `60` |
+
+### Application Properties Reference
+
+From `/home/daytona/workspace/source/Microservicios/microservice-usuario/src/main/resources/application.properties:4`:
+
+```properties
+spring.application.name=microservice-usuario
+server.servlet.context-path=/api/usuarios
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
+server.port=${SERVER_PORT}
+eureka.client.service-url.defaultZone=${EUREKA_URL}
+security.jwt.secret=${JWT_SECRET}
+security.jwt.expiration-minutes=${JWT_EXP}
+```
+
+### Example .env File
+
+```bash
+# Usuario Service Environment Variables
+
+# Database
+DB_URL=jdbc:postgresql://localhost:5434/usuario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server
+SERVER_PORT=8081
+
+# Service Discovery
+EUREKA_URL=http://eureka-server:8761/eureka/
+
+# JWT
+JWT_SECRET=your-secret-key-min-256-bits-change-in-production
+JWT_EXP=60
+```
+
+## Cliente Service
+
+### Database Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `DB_URL` | string | Yes | PostgreSQL JDBC connection URL | `jdbc:postgresql://localhost:5433/cliente_db` |
+| `DB_USERNAME` | string | Yes | Database username | `fluxora` |
+| `DB_PASSWORD` | string | Yes | Database password | `fluxora123` |
+
+### Server Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `SERVER_PORT` | number | Yes | HTTP server port | `8083` |
+
+### Service Discovery
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `EUREKA_URL` | string | Yes | Eureka server endpoint | `http://eureka-server:8761/eureka/` |
+
+### JWT Authentication
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `JWT_SECRET` | string | Yes | Secret key for JWT signing (must match Usuario service) | `my-secret-key-change-in-production` |
+| `JWT_EXP` | number | Yes | Token expiration time (minutes) | `60` |
+
+### Application Properties Reference
+
+From `/home/daytona/workspace/source/Microservicios/microservice-cliente/src/main/resources/application.properties:3`:
+
+```properties
+spring.application.name=microservice-cliente
+server.port=${SERVER_PORT}
+server.servlet.context-path=/api/clientes
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+eureka.client.service-url.defaultZone=${EUREKA_URL}
+jwt.secret=${JWT_SECRET}
+jwt.expiration=${JWT_EXP}
+```
+
+### Example .env File
+
+```bash
+# Cliente Service Environment Variables
+
+# Database
+DB_URL=jdbc:postgresql://localhost:5433/cliente_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server
+SERVER_PORT=8083
+
+# Service Discovery
+EUREKA_URL=http://eureka-server:8761/eureka/
+
+# JWT
+JWT_SECRET=your-secret-key-min-256-bits-change-in-production
+JWT_EXP=60
+```
+
+## Inventario Service
+
+### Database Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `DB_URL` | string | Yes | PostgreSQL JDBC connection URL | `jdbc:postgresql://localhost:5436/inventario_db` |
+| `DB_USERNAME` | string | Yes | Database username | `fluxora` |
+| `DB_PASSWORD` | string | Yes | Database password | `fluxora123` |
+
+### Server Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `SERVER_PORT` | number | Yes | HTTP server port | `8082` |
+
+### Service Discovery
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `EUREKA_URL` | string | Yes | Eureka server endpoint | `http://eureka-server:8761/eureka/` |
+
+### JWT Authentication
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `JWT_SECRET` | string | Yes | Secret key for JWT signing | `my-secret-key-change-in-production` |
+| `JWT_EXP` | number | Yes | Token expiration time (minutes) | `60` |
+
+### Application Properties Reference
+
+From `/home/daytona/workspace/source/Microservicios/microservice-inventario/src/main/resources/application.properties:3`:
+
+```properties
+spring.application.name=microservice-inventario
+server.servlet.context-path=/api/inventario
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+spring.jpa.hibernate.ddl-auto=update
+server.port=${SERVER_PORT}
+eureka.client.service-url.defaultZone=${EUREKA_URL}
+security.jwt.secret=${JWT_SECRET}
+security.jwt.expiration-minutes=${JWT_EXP}
+```
+
+### Example .env File
+
+```bash
+# Inventario Service Environment Variables
+
+# Database
+DB_URL=jdbc:postgresql://localhost:5436/inventario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server
+SERVER_PORT=8082
+
+# Service Discovery
+EUREKA_URL=http://eureka-server:8761/eureka/
+
+# JWT
+JWT_SECRET=your-secret-key-min-256-bits-change-in-production
+JWT_EXP=60
+```
+
+## Entrega Service
+
+### Database Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `DB_URL` | string | Yes | PostgreSQL JDBC connection URL | `jdbc:postgresql://localhost:5435/entrega_db` |
+| `DB_USERNAME` | string | Yes | Database username | `fluxora` |
+| `DB_PASSWORD` | string | Yes | Database password | `fluxora123` |
+
+### Server Configuration
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `SERVER_PORT` | number | Yes | HTTP server port | `8084` |
+
+### Service Discovery
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `EUREKA_URL` | string | Yes | Eureka server endpoint | `http://eureka-server:8761/eureka/` |
+
+### JWT Authentication
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `JWT_SECRET` | string | Yes | Secret key for JWT signing | `my-secret-key-change-in-production` |
+| `JWT_EXP` | number | Yes | Token expiration time (minutes) | `60` |
+
+### Email Configuration (SMTP)
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `SMTP_PASSWORD` | string | Yes | Gmail app password for sending emails | `abcd efgh ijkl mnop` |
+
+<Warning>
+The Entrega service sends delivery notification emails. You must configure a Gmail app password. Regular Gmail passwords won't work due to Google's security policies.
+</Warning>
+
+### Application Properties Reference
+
+From `/home/daytona/workspace/source/Microservicios/microservice-entrega/src/main/resources/application.properties:3`:
+
+```properties
+spring.application.name=microservice-entrega
+server.port=${SERVER_PORT}
+server.servlet.context-path=/api/entregas
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+eureka.client.service-url.defaultZone=${EUREKA_URL}
+jwt.secret=${JWT_SECRET}
+jwt.expiration=${JWT_EXP}
+
+# SMTP Configuration
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=fluxoracl@gmail.com
+spring.mail.password=${SMTP_PASSWORD}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+```
+
+### Example .env File
+
+```bash
+# Entrega Service Environment Variables
+
+# Database
+DB_URL=jdbc:postgresql://localhost:5435/entrega_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server
+SERVER_PORT=8084
+
+# Service Discovery
+EUREKA_URL=http://eureka-server:8761/eureka/
+
+# JWT
+JWT_SECRET=your-secret-key-min-256-bits-change-in-production
+JWT_EXP=60
+
+# Email (Gmail App Password)
+SMTP_PASSWORD=your-gmail-app-password-here
+```
+
+### Setting Up Gmail App Password
+
+<Steps>
+  <Step title="Enable 2-Factor Authentication">
+    Go to your Google Account settings and enable 2-factor authentication.
+  </Step>
+  
+  <Step title="Generate App Password">
+    1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords)
+    2. Select "Mail" and "Other (Custom name)"
+    3. Enter "Fluxora Delivery Service"
+    4. Click "Generate"
+    5. Copy the 16-character password
+  </Step>
+  
+  <Step title="Configure Environment Variable">
+    Set `SMTP_PASSWORD` to the generated app password (no spaces):
+    ```bash
+    SMTP_PASSWORD=abcdefghijklmnop
+    ```
+  </Step>
+</Steps>
+
+## API Gateway
+
+The API Gateway does not require a `.env` file. All configuration is in `application.properties`.
+
+### Fixed Configuration
+
+From `/home/daytona/workspace/source/Microservicios/microservice-gateway/src/main/resources/application.properties:1`:
+
+```properties
+spring.application.name=microservice-gateway
+server.port=8080
+
+# Service Discovery
+eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+
+# Routes to Microservices
+spring.cloud.gateway.server.webflux.routes[0].id=usuarios
+spring.cloud.gateway.server.webflux.routes[0].uri=http://usuario-service:8081
+spring.cloud.gateway.server.webflux.routes[0].predicates[0]=Path=/api/usuarios/**
+
+spring.cloud.gateway.server.webflux.routes[1].id=inventario
+spring.cloud.gateway.server.webflux.routes[1].uri=http://inventario-service:8082
+spring.cloud.gateway.server.webflux.routes[1].predicates[0]=Path=/api/inventario/**
+
+spring.cloud.gateway.server.webflux.routes[2].id=clientes
+spring.cloud.gateway.server.webflux.routes[2].uri=http://cliente-service:8083
+spring.cloud.gateway.server.webflux.routes[2].predicates[0]=Path=/api/clientes/**
+
+spring.cloud.gateway.server.webflux.routes[3].id=entregas
+spring.cloud.gateway.server.webflux.routes[3].uri=http://entrega-service:8084
+spring.cloud.gateway.server.webflux.routes[3].predicates[0]=Path=/api/entregas/**
+
+# CORS Configuration
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-origins=http://localhost:3000,https://fluxora.uno
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-methods=GET,POST,PUT,PATCH,DELETE,OPTIONS
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-headers=Authorization,Content-Type,Accept,X-Requested-With
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allow-credentials=true
+```
+
+<Note>
+For production deployments, update the `allowed-origins` in `application.properties` to include your production frontend URL.
+</Note>
+
+## Eureka Server
+
+The Eureka Server does not require environment variables. Configuration is fixed in `application.properties`.
+
+From `/home/daytona/workspace/source/Microservicios/microservice-eureka/src/main/resources/application.properties:1`:
+
+```properties
+spring.application.name=microservice-eureka
+server.port=8761
+eureka.instance.hostname=eureka-server
+eureka.instance.prefer-ip-address=false
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+eureka.client.service-url.defaultZone=http://eureka-server:${server.port}/eureka/
+```
+
+## Frontend (Next.js)
+
+### Required Variables
+
+| Variable | Type | Required | Description | Example |
+|----------|------|----------|-------------|----------|
+| `NEXT_PUBLIC_API_URL` | string | Yes | API Gateway base URL | `http://localhost:8080` |
+| `NEXT_PUBLIC_APP_URL` | string | No | Frontend application URL | `http://localhost:3000` |
+
+<Note>
+Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser. Never include secrets in these variables.
+</Note>
+
+### Example .env File
+
+```bash
+# Frontend Environment Variables
+
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8080
+
+# Application URL (optional)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### Production Environment
+
+```bash
+# Production Frontend Environment Variables
+
+# API Configuration
+NEXT_PUBLIC_API_URL=https://api.fluxora.com
+
+# Application URL
+NEXT_PUBLIC_APP_URL=https://fluxora.com
+```
+
+## Environment-Specific Configurations
+
+### Development (Docker Compose)
+
+<CodeGroup>
+```bash Usuario Service
+DB_URL=jdbc:postgresql://db-usuario:5432/usuario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+SERVER_PORT=8081
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=dev-secret-key-change-in-production
+JWT_EXP=60
+```
+
+```bash Frontend
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+</CodeGroup>
+
+### Production (Render)
+
+<CodeGroup>
+```bash Usuario Service
+DB_URL=jdbc:postgresql://dpg-xxxxx.oregon-postgres.render.com:5432/fluxora_db?currentSchema=usuario
+DB_USERNAME=fluxora
+DB_PASSWORD=<render-generated-password>
+SERVER_PORT=8081
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=<strong-secret-key-256-bits>
+JWT_EXP=60
+```
+
+```bash Frontend
+NEXT_PUBLIC_API_URL=https://api-gateway.onrender.com
+NEXT_PUBLIC_APP_URL=https://frontend-fluxora.onrender.com
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<Warning>
+Never commit `.env` files to version control. Always use `.gitignore`:
+
+```gitignore
+# Environment variables
+.env
+.env.local
+.env.production
+*.env
+```
+</Warning>
+
+### JWT Secret Requirements
+
+1. **Minimum Length**: 256 bits (32 characters)
+2. **Randomness**: Use cryptographically secure random generation
+3. **Consistency**: All microservices must use the **same** JWT secret
+4. **Rotation**: Rotate secrets periodically in production
+
+### Generate Secure JWT Secret
+
+```bash
+# Using OpenSSL
+openssl rand -base64 32
+
+# Using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Using Python
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### Database Password Requirements
+
+1. **Development**: Simple passwords OK (e.g., `fluxora123`)
+2. **Production**: 
+   - Minimum 16 characters
+   - Mix of uppercase, lowercase, numbers, symbols
+   - Use password managers or Render's auto-generation
+
+### SMTP Password
+
+<Warning>
+NEVER use your actual Gmail password. Always use an App Password:
+- More secure
+- Can be revoked independently
+- Required when 2FA is enabled
+</Warning>
+
+## Environment Variable Validation
+
+### Missing Variables
+
+If required variables are missing, services will fail to start with errors like:
+
+```
+Could not resolve placeholder 'DB_URL' in value "${DB_URL}"
+```
+
+### Validation Checklist
+
+<Steps>
+  <Step title="Check .env Files Exist">
+    ```bash
+    ls -la Microservicios/microservice-usuario/.env
+    ls -la Microservicios/microservice-cliente/.env
+    ls -la Microservicios/microservice-inventario/.env
+    ls -la Microservicios/microservice-entrega/.env
+    ls -la frontend-fluxora/.env
+    ```
+  </Step>
+  
+  <Step title="Verify Variable Names">
+    Ensure variable names match exactly (case-sensitive):
+    - `DB_URL` (not `DATABASE_URL`)
+    - `EUREKA_URL` (not `EUREKA_SERVER_URL`)
+  </Step>
+  
+  <Step title="Check for Trailing Spaces">
+    Remove any trailing spaces or quotes:
+    ```bash
+    # Correct
+    DB_PASSWORD=fluxora123
+    
+    # Incorrect
+    DB_PASSWORD=fluxora123 
+    DB_PASSWORD="fluxora123"
+    ```
+  </Step>
+  
+  <Step title="Validate JDBC URLs">
+    Ensure proper JDBC URL format:
+    ```bash
+    # Correct
+    jdbc:postgresql://host:port/database
+    
+    # Incorrect
+    postgresql://host:port/database
+    ```
+  </Step>
+</Steps>
+
+## Docker Compose Overrides
+
+Environment variables in `docker-compose.yml` override `.env` files:
+
+```yaml
+usuario-service:
+  env_file:
+    - ./Microservicios/microservice-usuario/.env
+  environment:
+    - TZ=America/Santiago  # Overrides TZ from .env
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+```
+
+## Render Environment Variables
+
+### Setting Variables in Render
+
+1. Go to service in Render Dashboard
+2. Click "Environment" tab
+3. Click "Add Environment Variable"
+4. Enter key and value
+5. Click "Save Changes"
+6. Service will automatically redeploy
+
+### Render-Specific Variables
+
+Render automatically provides:
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Assigned port (use in `SERVER_PORT`) |
+| `RENDER` | Always `true` |
+| `RENDER_SERVICE_NAME` | Service name |
+| `RENDER_EXTERNAL_URL` | Public service URL |
+| `RENDER_INSTANCE_ID` | Instance identifier |
+
+## Troubleshooting
+
+### Variable Not Loading
+
+1. Check file encoding is UTF-8 (not UTF-16)
+2. Verify no BOM (Byte Order Mark) in file
+3. Ensure Spring Boot version supports `.env` files (2.4+)
+4. Check file permissions are readable
+
+### Connection Refused Errors
+
+**Symptom**: `Connection refused to eureka-server:8761`
+
+**Solution**: Use internal service names in Docker:
+```bash
+# Correct for Docker Compose
+EUREKA_URL=http://eureka-server:8761/eureka/
+
+# Incorrect
+EUREKA_URL=http://localhost:8761/eureka/
+```
+
+### JWT Token Invalid
+
+**Symptom**: 401 Unauthorized errors
+
+**Solution**: Ensure all services use the **same** `JWT_SECRET`:
+```bash
+# All services must have identical values
+JWT_SECRET=your-secret-key-min-256-bits-change-in-production
+```
+
+## Complete Environment Setup
+
+### Quick Start Script
+
+Create all `.env` files at once:
+
+```bash
+#!/bin/bash
+
+# Generate secure JWT secret
+JWT_SECRET=$(openssl rand -base64 32)
+
+# Usuario Service
+cat > Microservicios/microservice-usuario/.env <<EOF
+DB_URL=jdbc:postgresql://db-usuario:5432/usuario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+SERVER_PORT=8081
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=$JWT_SECRET
+JWT_EXP=60
+EOF
+
+# Cliente Service
+cat > Microservicios/microservice-cliente/.env <<EOF
+DB_URL=jdbc:postgresql://db-cliente:5432/cliente_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+SERVER_PORT=8083
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=$JWT_SECRET
+JWT_EXP=60
+EOF
+
+# Inventario Service
+cat > Microservicios/microservice-inventario/.env <<EOF
+DB_URL=jdbc:postgresql://db-inventario:5432/inventario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+SERVER_PORT=8082
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=$JWT_SECRET
+JWT_EXP=60
+EOF
+
+# Entrega Service
+cat > Microservicios/microservice-entrega/.env <<EOF
+DB_URL=jdbc:postgresql://db-entrega:5432/entrega_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+SERVER_PORT=8084
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=$JWT_SECRET
+JWT_EXP=60
+SMTP_PASSWORD=your-gmail-app-password-here
+EOF
+
+# Frontend
+cat > frontend-fluxora/.env <<EOF
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+EOF
+
+echo "Environment files created successfully!"
+echo "JWT_SECRET: $JWT_SECRET"
+echo "Don't forget to update SMTP_PASSWORD in Entrega service!"
+```
+
+## Next Steps
+
+- Deploy with [Docker](/deployment/docker)
+- Deploy to [Render](/deployment/render)
+- Configure [Monitoring]()

@@ -1,0 +1,540 @@
+---
+title: 'Security'
+description: 'Spring Security configuration, JWT authentication, and role-based authorization'
+icon: 'shield'
+---
+
+## Overview
+
+Fluxora implements **JWT-based stateless authentication** with role-based access control (RBAC) using Spring Security 6.x. All microservices validate JWT tokens and enforce authorization rules.
+
+## Spring Security Configuration
+
+### SecurityConfig Class
+
+Each microservice has a `SecurityConfig` class that defines the security filter chain:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/config/SecurityConfig.java
+package com.microservice.cliente.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.microservice.cliente.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
+
+@Configuration
+@EnableWebSecurity              // Enable Spring Security
+@EnableMethodSecurity          // Enable @PreAuthorize annotations
+public class SecurityConfig {
+
+    @Bean
+    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable())  // Disable CSRF for stateless APIs
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))  // No sessions
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/clientes/test", "/test").permitAll()  // Public endpoints
+                        .anyRequest().authenticated())  // All other requests require authentication
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.setContentType("application/json");
+                            res.getWriter().write("{\"error\": \"Token requerido\"}");
+                        }))
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)  // Add JWT filter
+                .build();
+    }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Stateless Sessions" icon="server">
+    `SessionCreationPolicy.STATELESS` prevents Spring from creating HTTP sessions, relying entirely on JWT tokens.
+  </Card>
+  <Card title="CSRF Disabled" icon="shield-xmark">
+    CSRF protection is disabled because stateless JWT APIs are not vulnerable to CSRF attacks.
+  </Card>
+  <Card title="Custom Error Responses" icon="message">
+    The `authenticationEntryPoint` returns JSON instead of redirecting to a login page.
+  </Card>
+  <Card title="Method Security" icon="lock">
+    `@EnableMethodSecurity` enables `@PreAuthorize` annotations on controller methods.
+  </Card>
+</CardGroup>
+
+### Public vs Protected Endpoints
+
+```java
+.authorizeHttpRequests(auth -> auth
+    .requestMatchers("/clientes/test", "/test").permitAll()  // No auth required
+    .anyRequest().authenticated())  // All other endpoints require JWT
+```
+
+<Tip>
+Use `.requestMatchers()` to whitelist public endpoints like health checks or Swagger UI.
+</Tip>
+
+## JWT Implementation
+
+### JwtUtils Service
+
+Handles JWT validation and claims extraction:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/security/JwtUtils.java
+package com.microservice.cliente.security;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+
+@Component
+public class JwtUtils {
+
+    @Value("${JWT_SECRET}")
+    private String jwtSecret;  // Loaded from environment variable
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder()
+                    .setSigningKey(Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret)))
+                    .build()
+                    .parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;  // Invalid token
+        }
+    }
+
+    public Claims getClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret)))
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public String getEmailFromToken(String token) {
+        return getClaims(token).get("email", String.class);
+    }
+
+    public String getRoleFromToken(String token) {
+        return getClaims(token).get("role", String.class);
+    }
+}
+```
+
+### JWT Dependencies
+
+```xml pom.xml
+<dependencies>
+    <!-- JWT library -->
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>0.11.5</version>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>0.11.5</version>
+        <scope>runtime</scope>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>0.11.5</version>
+        <scope>runtime</scope>
+    </dependency>
+</dependencies>
+```
+
+<Warning>
+**Security Best Practice:** Never hardcode the JWT secret in source code. Always use environment variables:
+```bash
+export JWT_SECRET="your-base64-encoded-secret-key"
+```
+</Warning>
+
+### JWT Token Structure
+
+Fluxora JWT tokens contain these claims:
+
+```json
+{
+  "sub": "123",              // User ID
+  "email": "admin@fluxora.com",
+  "role": "ADMIN",           // User role (ADMIN, DRIVER, etc.)
+  "iat": 1678901234,         // Issued at timestamp
+  "exp": 1678987634          // Expiration timestamp
+}
+```
+
+## Authentication Filter
+
+### JwtAuthenticationFilter
+
+Intercepts every request to validate the JWT token:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/security/JwtAuthenticationFilter.java
+package com.microservice.cliente.security;
+
+import java.io.IOException;
+import java.util.List;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtUtils jwtUtils;
+
+    public JwtAuthenticationFilter(JwtUtils jwtUtils) {
+        this.jwtUtils = jwtUtils;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+
+        String header = request.getHeader("Authorization");
+
+        // No Authorization header or doesn't start with "Bearer "
+        if (header == null || !header.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String token = header.substring(7).trim();  // Remove "Bearer " prefix
+
+        try {
+            if (jwtUtils.validateToken(token)) {
+                String email = jwtUtils.getEmailFromToken(token);
+                String role = jwtUtils.getRoleFromToken(token);
+
+                // Create authentication object with role as authority
+                var auth = new UsernamePasswordAuthenticationToken(email, null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
+        } catch (Exception e) {
+            // Invalid token - clear security context
+            SecurityContextHolder.clearContext();
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}
+```
+
+<Note>
+**Important:** Spring Security requires role names to have the `ROLE_` prefix. The filter adds this prefix automatically:
+```java
+List.of(new SimpleGrantedAuthority("ROLE_" + role))
+```
+So a user with `role: "ADMIN"` in the JWT becomes `ROLE_ADMIN` in Spring Security.
+</Note>
+
+### Filter Execution Flow
+
+<Steps>
+  <Step title="Extract Authorization Header">
+    Check if the request has an `Authorization` header starting with `Bearer `.
+  </Step>
+  <Step title="Validate Token">
+    Use `JwtUtils.validateToken()` to verify the token signature and expiration.
+  </Step>
+  <Step title="Extract Claims">
+    Extract `email` and `role` from the JWT claims.
+  </Step>
+  <Step title="Create Authentication">
+    Create a `UsernamePasswordAuthenticationToken` with the user's email and role.
+  </Step>
+  <Step title="Set Security Context">
+    Store the authentication in `SecurityContextHolder` for downstream use.
+  </Step>
+</Steps>
+
+## Role-Based Authorization
+
+### @PreAuthorize Annotation
+
+Use `@PreAuthorize` on controller methods to enforce role-based access control:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/controller/ClienteController.java
+@RestController
+@RequestMapping("/clientes")
+public class ClienteController {
+
+    @Autowired
+    private ClienteService clienteService;
+
+    // Only ADMIN users can access
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping()
+    public List<ClienteDTO> getAllClientes() {
+        return clienteService.getAllClientesConInfoRuta();
+    }
+
+    // Only ADMIN users can create
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping()
+    public Cliente addCliente(@RequestBody Cliente cliente) {
+        return clienteService.addCliente(cliente);
+    }
+
+    // ADMIN or DRIVER users can access
+    @PreAuthorize("hasAnyRole('ADMIN', 'DRIVER')")
+    @GetMapping("/{id}")
+    public List<ClienteDTO> getClienteByIds(@PathVariable List<Long> id) {
+        return clienteService.getClienteByIds(id);
+    }
+
+    // Only ADMIN users can delete
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteCliente(@PathVariable Long id) {
+        clienteService.deleteCliente(id);
+        return ResponseEntity.ok("Cliente eliminado exitosamente");
+    }
+}
+```
+
+### Authorization Expressions
+
+| Expression | Description | Example |
+|------------|-------------|----------|
+| `hasRole('ADMIN')` | User has exactly this role | `@PreAuthorize("hasRole('ADMIN')")` |
+| `hasAnyRole('ADMIN', 'DRIVER')` | User has any of these roles | `@PreAuthorize("hasAnyRole('ADMIN', 'DRIVER')")` |
+| `isAuthenticated()` | User is logged in | `@PreAuthorize("isAuthenticated()")` |
+| `permitAll()` | Allow everyone | `@PreAuthorize("permitAll()")` |
+| `denyAll()` | Deny everyone | `@PreAuthorize("denyAll()")` |
+
+<Warning>
+Do NOT include the `ROLE_` prefix in `@PreAuthorize` expressions. Spring Security adds it automatically.
+
+✅ Correct: `@PreAuthorize("hasRole('ADMIN')")`  
+❌ Wrong: `@PreAuthorize("hasRole('ROLE_ADMIN')")`
+</Warning>
+
+### Testing Authorization
+
+Test with different roles to verify access control:
+
+```bash
+# Request with ADMIN role
+curl -H "Authorization: Bearer <admin-jwt-token>" \
+     http://localhost:8001/api/clientes/clientes
+
+# Request with DRIVER role (should be denied)
+curl -H "Authorization: Bearer <driver-jwt-token>" \
+     http://localhost:8001/api/clientes/clientes
+
+# Request without token (should return 401)
+curl http://localhost:8001/api/clientes/clientes
+```
+
+## Password Encoding
+
+While password encoding is typically handled by the `microservice-usuario` (user service), here's the standard pattern:
+
+```java
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();  // BCrypt with salt
+    }
+}
+```
+
+### Encoding Passwords
+
+```java
+@Service
+public class UsuarioService {
+
+    private final PasswordEncoder passwordEncoder;
+
+    public Usuario createUser(String email, String password, Rol rol) {
+        Usuario usuario = new Usuario();
+        usuario.setEmail(email);
+        usuario.setPassword(passwordEncoder.encode(password));  // Hash password
+        usuario.setRol(rol);
+        return usuarioRepository.save(usuario);
+    }
+
+    public boolean verifyPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
+}
+```
+
+<Check>
+**BCrypt Benefits:**
+- Automatically generates salt
+- Adaptive hashing (adjustable work factor)
+- Industry-standard for password storage
+</Check>
+
+## CORS Configuration
+
+### Enabling CORS
+
+For frontend applications, configure CORS in the API Gateway or individual services:
+
+```java
+@Configuration
+public class SecurityConfig {
+
+    @Bean
+    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
+        return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))  // Enable CORS
+                .csrf(csrf -> csrf.disable())
+                // ... rest of configuration
+                .build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "https://app.fluxora.com"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+}
+```
+
+<Warning>
+Never use `setAllowedOrigins(List.of("*"))` in production. Always whitelist specific domains.
+</Warning>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use environment variables for secrets">
+    Never commit secrets to version control:
+    ```bash
+    # .env file (not committed)
+    JWT_SECRET=your-base64-secret-here
+    DB_PASSWORD=your-db-password
+    ```
+  </Accordion>
+  
+  <Accordion title="Set appropriate token expiration">
+    JWT tokens should expire after a reasonable time:
+    ```java
+    .setExpiration(new Date(System.currentTimeMillis() + 86400000))  // 24 hours
+    ```
+  </Accordion>
+  
+  <Accordion title="Use HTTPS in production">
+    Always serve APIs over HTTPS to prevent token interception:
+    ```yaml
+    server:
+      ssl:
+        enabled: true
+        key-store: classpath:keystore.p12
+        key-store-password: ${SSL_PASSWORD}
+    ```
+  </Accordion>
+  
+  <Accordion title="Validate all input">
+    Never trust client input. Validate and sanitize all request data:
+    ```java
+    @PostMapping()
+    public Cliente addCliente(@Valid @RequestBody Cliente cliente) {
+        return clienteService.addCliente(cliente);
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Log security events">
+    Log authentication failures and suspicious activity:
+    ```java
+    log.warn("Failed login attempt for user: {}", email);
+    log.error("Invalid JWT token: {}", e.getMessage());
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Security Scenarios
+
+### Testing Without Security (Development Only)
+
+Disable security for local testing:
+
+```java
+@WebMvcTest(value = ClienteController.class, 
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class
+    })
+@AutoConfigureMockMvc(addFilters = false)
+class ClienteControllerTest {
+    // Tests run without security filters
+}
+```
+
+<Warning>
+Never disable security in production builds!
+</Warning>
+
+### Accessing Current User in Services
+
+```java
+@Service
+public class ClienteService {
+
+    public String getCurrentUserEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : null;  // Returns email
+    }
+
+    public boolean hasRole(String role) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
+    }
+}
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Spring Boot Services" icon="spring" href="/development/spring-boot-services">
+    Service layer architecture and dependency injection
+  </Card>
+  <Card title="Inter-Service Communication" icon="network-wired" href="/development/inter-service-communication">
+    JWT propagation in Feign clients
+  </Card>
+  <Card title="API Gateway" icon="gateway" href="/development/api-gateway-pattern">
+    Centralized authentication and routing
+  </Card>
+  <Card title="Usuario Service" icon="user" href="/api/usuario-service">
+    User management and JWT generation
+  </Card>
+</CardGroup>

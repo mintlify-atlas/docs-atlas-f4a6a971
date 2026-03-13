@@ -1,0 +1,875 @@
+---
+title: 'Code Style Guide'
+description: 'Code conventions and style guidelines for Fluxora development'
+icon: 'code'
+---
+
+## Overview
+
+Consistent code style improves readability and maintainability across the Fluxora codebase. This guide covers conventions for both backend (Java/Spring Boot) and frontend (TypeScript/Next.js) development.
+
+## Java Code Conventions
+
+### Package Structure
+
+Follow standard Spring Boot package organization:
+
+```
+com.microservice.<service-name>/
+├── config/              # Configuration classes
+├── controller/          # REST controllers
+├── dto/                 # Data Transfer Objects
+├── entity/              # JPA entities
+├── repository/          # Spring Data repositories
+├── service/             # Business logic
+├── exception/           # Custom exceptions
+├── client/              # Feign clients (if applicable)
+└── <ServiceName>Application.java
+```
+
+<Info>
+  Each microservice follows this structure: `microservice-usuario`, `microservice-inventario`, `microservice-cliente`, `microservice-entrega`, etc.
+</Info>
+
+### Naming Conventions
+
+<AccordionGroup>
+  <Accordion title="Classes" icon="file-code">
+    Use PascalCase for class names:
+    
+    ```java
+    // Entities
+    public class Cliente { }
+    public class Usuario { }
+    public class Producto { }
+    
+    // Controllers
+    public class ClienteController { }
+    public class UsuarioController { }
+    
+    // Services
+    public class ClienteService { }
+    public class UsuarioService { }
+    
+    // DTOs
+    public class ClienteDTO { }
+    public class CreateUsuarioRequest { }
+    public class UpdateUsuarioRequest { }
+    ```
+  </Accordion>
+  
+  <Accordion title="Methods" icon="function">
+    Use camelCase for method names. Method names should be descriptive verbs:
+    
+    ```java
+    // Good
+    public List<Usuario> getAllUsuarios() { }
+    public Usuario createUsuario(CreateUsuarioRequest request) { }
+    public Usuario updateUsuario(Long id, UpdateUsuarioRequest request) { }
+    public void deleteUsuario(Long id) { }
+    public List<Usuario> getUsuariosByRol(String rol) { }
+    
+    // Avoid
+    public List<Usuario> get() { }  // Too vague
+    public Usuario create(Object o) { }  // Poor parameter naming
+    ```
+  </Accordion>
+  
+  <Accordion title="Variables" icon="input-text">
+    Use camelCase for variables. Choose descriptive names:
+    
+    ```java
+    // Good
+    private UsuarioRepository usuarioRepository;
+    private PasswordEncoder passwordEncoder;
+    private String nombreNegocio;
+    private Double precioCorriente;
+    private Double precioEspecial;
+    
+    // Avoid
+    private String n;  // Too short
+    private Double precio1;  // Use descriptive names
+    private String string;  // Don't use type as name
+    ```
+  </Accordion>
+  
+  <Accordion title="Constants" icon="lock">
+    Use UPPER_SNAKE_CASE for constants:
+    
+    ```java
+    public static final String DEFAULT_ROLE = "USER";
+    public static final int MAX_RETRY_ATTEMPTS = 3;
+    public static final long TOKEN_VALIDITY = 86400000L;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Entity Classes
+
+Use Lombok annotations to reduce boilerplate:
+
+<CodeGroup>
+```java Entity with Lombok
+package com.microservice.cliente.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Cliente {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    private String nombreNegocio;
+    private String nombre;
+    private String direccion;
+    private String contacto;
+    private String email;
+    
+    @Column(name = "latitud")
+    private Double latitud;
+    
+    @Column(name = "longitud")
+    private Double longitud;
+    
+    @Column(name = "precio_corriente")
+    private Double precioCorriente;
+    
+    @Column(name = "precio_especial")
+    private Double precioEspecial;
+}
+```
+
+```java DTO with Builder
+package com.microservice.inventario.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProductoDTO {
+    private Long id;
+    private String nombre;
+    private String estado;
+    private Double precioVenta;
+    private String tipoProducto;
+    private String categoria;
+    private Long recetaMaestraId;
+    private Integer stockTotal;
+}
+```
+</CodeGroup>
+
+<Note>
+  **Lombok Annotations Used:**
+  - `@Data` - Generates getters, setters, toString, equals, and hashCode
+  - `@NoArgsConstructor` - Generates no-argument constructor
+  - `@AllArgsConstructor` - Generates constructor with all fields
+  - `@Builder` - Implements builder pattern
+</Note>
+
+### Controller Classes
+
+Follow RESTful conventions:
+
+```java
+package com.microservice.cliente.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/clientes")
+public class ClienteController {
+    
+    @Autowired
+    private ClienteService clienteService;
+    
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping()
+    public List<ClienteDTO> getAllClientes() {
+        return clienteService.getAllClientesConInfoRuta();
+    }
+    
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping()
+    public Cliente addCliente(@RequestBody Cliente cliente) {
+        return clienteService.addCliente(cliente);
+    }
+    
+    @PreAuthorize("hasAnyRole('ADMIN', 'DRIVER')")
+    @GetMapping("/{id}")
+    public ClienteDTO getClienteById(@PathVariable Long id) {
+        return clienteService.getClienteById(id);
+    }
+    
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<Cliente> updateCliente(
+            @PathVariable Long id, 
+            @RequestBody Cliente clienteDetails) {
+        ResponseEntity<Cliente> updatedCliente = 
+            clienteService.updateCliente(id, clienteDetails);
+        return ResponseEntity.ok(updatedCliente.getBody());
+    }
+    
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteCliente(@PathVariable Long id) {
+        clienteService.deleteCliente(id);
+        return ResponseEntity.ok("Cliente eliminado exitosamente");
+    }
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="HTTP Methods" icon="arrows-left-right">
+    - `@GetMapping` - Read operations
+    - `@PostMapping` - Create operations
+    - `@PutMapping` - Update operations
+    - `@DeleteMapping` - Delete operations
+  </Card>
+  
+  <Card title="Security" icon="shield">
+    - Use `@PreAuthorize` for role-based access
+    - Common roles: `ADMIN`, `USER`, `DRIVER`
+    - Use `hasRole()` for single role
+    - Use `hasAnyRole()` for multiple roles
+  </Card>
+</CardGroup>
+
+### Service Classes
+
+Implement business logic in service layer:
+
+```java
+package com.microservice.usuario.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class UsuarioService {
+    
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+    
+    @Autowired
+    private RolRepository rolRepository;
+    
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
+    public List<Usuario> getAllUsuarios() {
+        return usuarioRepository.findAll();
+    }
+    
+    public Usuario createUsuario(CreateUsuarioRequest request) {
+        if (usuarioRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email ya registrado");
+        }
+        
+        Rol rol = rolRepository.findById(request.getRolId())
+            .orElseThrow(() -> 
+                new IllegalArgumentException("Rol no encontrado"));
+        
+        Usuario usuario = new Usuario();
+        usuario.setNombre(request.getNombre());
+        usuario.setEmail(request.getEmail());
+        usuario.setPassword(passwordEncoder.encode(request.getPassword()));
+        usuario.setRol(rol);
+        
+        return usuarioRepository.save(usuario);
+    }
+}
+```
+
+### Exception Handling
+
+Create custom exceptions and global exception handlers:
+
+<CodeGroup>
+```java Custom Exception
+package com.microservice.cliente.exception;
+
+public class ClienteNotFoundException extends RuntimeException {
+    public ClienteNotFoundException(String message) {
+        super(message);
+    }
+}
+```
+
+```java Global Exception Handler
+package com.microservice.cliente.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+@ControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(ClienteNotFoundException.class)
+    public ResponseEntity<String> handleClienteNotFound(
+            ClienteNotFoundException ex) {
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(ex.getMessage());
+    }
+    
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgument(
+            IllegalArgumentException ex) {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ex.getMessage());
+    }
+}
+```
+</CodeGroup>
+
+### Code Formatting
+
+<Tabs>
+  <Tab title="Indentation">
+    - Use 4 spaces for indentation (not tabs)
+    - Indent method bodies, class bodies, and blocks
+    - Align method parameters when breaking lines
+    
+    ```java
+    public ResponseEntity<Cliente> updateCliente(
+            @PathVariable Long id,
+            @RequestBody Cliente clienteDetails) {
+        // Method body with 4-space indent
+        return ResponseEntity.ok(result);
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Braces">
+    - Opening brace on same line
+    - Closing brace on new line
+    - Always use braces, even for single statements
+    
+    ```java
+    // Good
+    if (usuario != null) {
+        return usuario.getNombre();
+    }
+    
+    // Avoid
+    if (usuario != null)
+        return usuario.getNombre();
+    ```
+  </Tab>
+  
+  <Tab title="Line Length">
+    - Aim for 80-100 characters per line
+    - Break long lines at logical points
+    - Break method chains at dots
+    
+    ```java
+    return usuarioRepository.findById(id)
+        .orElseThrow(() -> 
+            new IllegalArgumentException("Usuario no encontrado"));
+    ```
+  </Tab>
+  
+  <Tab title="Blank Lines">
+    - One blank line between methods
+    - One blank line between logical sections
+    - No blank lines at start/end of blocks
+    
+    ```java
+    public class ClienteService {
+        
+        @Autowired
+        private ClienteRepository repository;
+        
+        public List<Cliente> getAll() {
+            return repository.findAll();
+        }
+        
+        public Cliente getById(Long id) {
+            return repository.findById(id)
+                .orElseThrow(...);
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## TypeScript/React Conventions
+
+### File Structure
+
+Next.js 15 App Router structure:
+
+```
+frontend-fluxora/
+├── src/
+│   ├── app/                    # App Router pages
+│   │   ├── (app)/             # Authenticated routes
+│   │   │   └── dashboard/
+│   │   ├── (auth)/            # Auth routes (login, etc.)
+│   │   ├── layout.tsx         # Root layout
+│   │   └── page.tsx           # Home page
+│   ├── components/            # React components
+│   │   ├── ui/               # Reusable UI components
+│   │   ├── clientes/         # Feature-specific components
+│   │   └── auth/             # Authentication components
+│   ├── hooks/                # Custom React hooks
+│   ├── services/             # API service functions
+│   ├── types/                # TypeScript type definitions
+│   ├── interfaces/           # TypeScript interfaces
+│   ├── lib/                  # Utility functions
+│   └── utils/                # Helper functions
+├── public/                   # Static assets
+└── tailwind.config.js        # Tailwind CSS config
+```
+
+### TypeScript Naming
+
+<AccordionGroup>
+  <Accordion title="Components" icon="react">
+    Use PascalCase for component names:
+    
+    ```tsx
+    // Component files
+    ClientForm.tsx
+    DataTable.tsx
+    Badge.tsx
+    MaterialIcon.tsx
+    ConfirmDeleteModal.tsx
+    
+    // Component definition
+    const ClientesPage = () => {
+      return <div>...</div>;
+    };
+    
+    export default ClientesPage;
+    ```
+  </Accordion>
+  
+  <Accordion title="Hooks" icon="anchor">
+    Use camelCase starting with 'use':
+    
+    ```tsx
+    // Hook files
+    useClientes.ts
+    useToast.ts
+    useRouter.ts
+    
+    // Hook definition
+    export const useClientes = () => {
+      const [clientes, setClientes] = useState([]);
+      // ...
+      return { clientes, loading, error };
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Types & Interfaces" icon="brackets-curly">
+    Use PascalCase for type and interface names:
+    
+    ```tsx
+    // types/Clientes.ts
+    export interface ClienteResponse {
+      id: number;
+      nombre: string;
+      nombreNegocio: string;
+      direccion: string;
+      contacto: string;
+      email: string;
+      latitud: number;
+      longitud: number;
+      precioCorriente: number;
+      precioEspecial: number;
+    }
+    
+    export type TabType = "clientes" | "repartos";
+    ```
+  </Accordion>
+  
+  <Accordion title="Functions & Variables" icon="code">
+    Use camelCase for functions and variables:
+    
+    ```tsx
+    const [showForm, setShowForm] = useState(false);
+    const [search, setSearch] = useState("");
+    const [activeTab, setActiveTab] = useState("clientes");
+    
+    const handleClientSubmit = async (data: any) => {
+      // ...
+    };
+    
+    const cargarClientes = async () => {
+      // ...
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Component Structure
+
+Organize React components consistently:
+
+```tsx
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useClientes } from "@/hooks/useClientes";
+import { ClienteResponse } from "@/types/Clientes";
+import ClientForm from "@/components/clientes/ClientForm";
+import DataTable from "@/components/ui/DataTable";
+
+// 1. Type definitions (if not in separate file)
+type ClientesPageProps = {
+  // ...
+};
+
+// 2. Component definition
+const ClientesPage = () => {
+  // 3. Hooks (in order: context, state, effects)
+  const { clientes, loading, error } = useClientes();
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  
+  useEffect(() => {
+    cargarClientes();
+  }, []);
+  
+  // 4. Event handlers
+  const handleClientSubmit = async (data: any) => {
+    // ...
+  };
+  
+  const handleEdit = (id: number) => {
+    // ...
+  };
+  
+  // 5. Computed values
+  const filteredClients = clientes.filter((client) => {
+    return client.nombre?.toLowerCase().includes(search.toLowerCase());
+  });
+  
+  // 6. Render
+  return (
+    <div>
+      {/* JSX */}
+    </div>
+  );
+};
+
+// 7. Export
+export default ClientesPage;
+```
+
+### TypeScript Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Type Everything" icon="shield-check">
+    ```tsx
+    // Good
+    const [user, setUser] = useState<User | null>(null);
+    
+    function handleSubmit(data: FormData): Promise<void> {
+      // ...
+    }
+    
+    // Avoid
+    const [user, setUser] = useState(null);
+    function handleSubmit(data: any) {
+      // ...
+    }
+    ```
+  </Card>
+  
+  <Card title="Interface vs Type" icon="code-compare">
+    Use `interface` for objects that can be extended:
+    ```tsx
+    interface Cliente {
+      id: number;
+      nombre: string;
+    }
+    ```
+    
+    Use `type` for unions, primitives:
+    ```tsx
+    type Status = "active" | "inactive";
+    type ID = string | number;
+    ```
+  </Card>
+  
+  <Card title="Avoid 'any'" icon="ban">
+    ```tsx
+    // Good
+    function processData(data: unknown) {
+      if (typeof data === 'string') {
+        return data.toUpperCase();
+      }
+    }
+    
+    // Avoid
+    function processData(data: any) {
+      return data.toUpperCase();
+    }
+    ```
+  </Card>
+  
+  <Card title="Optional Chaining" icon="link">
+    ```tsx
+    // Good
+    const name = client?.nombre;
+    const email = client?.contacto?.email;
+    
+    // Avoid
+    const name = client && client.nombre;
+    ```
+  </Card>
+</CardGroup>
+
+## Linting and Formatting
+
+### ESLint Configuration
+
+```javascript eslint.config.mjs
+import { FlatCompat } from "@eslint/eslintrc";
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+
+const eslintConfig = [
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+];
+
+export default eslintConfig;
+```
+
+### Run Linter
+
+```bash
+# Frontend
+cd frontend-fluxora
+npm run lint
+
+# Fix auto-fixable issues
+npm run lint -- --fix
+```
+
+### Maven Compiler Configuration
+
+```xml pom.xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <annotationProcessorPaths>
+            <path>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+            </path>
+        </annotationProcessorPaths>
+    </configuration>
+</plugin>
+```
+
+## Documentation Standards
+
+### Javadoc for Public APIs
+
+```java
+/**
+ * Creates a new user with the given details.
+ * 
+ * @param request the user creation request containing name, email, and role
+ * @return the newly created user with generated ID
+ * @throws IllegalArgumentException if email already exists or role not found
+ */
+public Usuario createUsuario(CreateUsuarioRequest request) {
+    // Implementation
+}
+```
+
+### JSDoc for Complex Functions
+
+```tsx
+/**
+ * Filters and sorts clients based on search criteria.
+ * 
+ * @param clients - Array of clients to filter
+ * @param search - Search term to match against client fields
+ * @returns Filtered array of clients matching the search term
+ */
+const filterClients = (
+  clients: ClienteResponse[],
+  search: string
+): ClienteResponse[] => {
+  // Implementation
+};
+```
+
+### Code Comments
+
+<Tabs>
+  <Tab title="When to Comment">
+    - Complex business logic
+    - Non-obvious algorithmic decisions
+    - Workarounds for bugs
+    - TODO items for future improvements
+    
+    ```java
+    // Calculate distance using Haversine formula for geo-coordinates
+    double distance = calculateHaversineDistance(lat1, lon1, lat2, lon2);
+    
+    // TODO: Implement caching for frequently accessed routes
+    List<Ruta> rutas = rutaRepository.findAll();
+    ```
+  </Tab>
+  
+  <Tab title="When NOT to Comment">
+    Don't comment obvious code:
+    
+    ```java
+    // Bad - Comment states the obvious
+    // Get all users
+    List<Usuario> users = usuarioRepository.findAll();
+    
+    // Good - Let code speak for itself
+    List<Usuario> users = usuarioRepository.findAll();
+    ```
+  </Tab>
+</Tabs>
+
+## Common Patterns
+
+### Repository Pattern
+
+```java
+public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+    Optional<Usuario> findByEmail(String email);
+    boolean existsByEmail(String email);
+    List<Usuario> findByRolRol(String rol);
+}
+```
+
+### Service with Constructor Injection
+
+```java
+@Service
+public class ClienteService {
+    
+    private final ClienteRepository clienteRepository;
+    private final EntregaServiceClient entregaClient;
+    
+    @Autowired
+    public ClienteService(
+            ClienteRepository clienteRepository,
+            EntregaServiceClient entregaClient) {
+        this.clienteRepository = clienteRepository;
+        this.entregaClient = entregaClient;
+    }
+}
+```
+
+### React Custom Hook
+
+```tsx
+export const useClientes = () => {
+  const [clientes, setClientes] = useState<ClienteResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const cargarClientes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await clienteService.getAll();
+      setClientes(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  return {
+    clientes,
+    loading,
+    error,
+    cargarClientes,
+  };
+};
+```
+
+## Tools
+
+<CardGroup cols={3}>
+  <Card title="IntelliJ IDEA" icon="laptop-code">
+    Recommended Java IDE with Spring Boot support
+  </Card>
+  
+  <Card title="VS Code" icon="code">
+    Recommended for TypeScript/React development
+  </Card>
+  
+  <Card title="Postman" icon="paper-plane">
+    API testing and documentation
+  </Card>
+</CardGroup>
+
+## Pre-Commit Checklist
+
+<Steps>
+  <Step title="Format Code">
+    Ensure code follows formatting guidelines
+  </Step>
+  
+  <Step title="Run Linter">
+    ```bash
+    npm run lint  # Frontend
+    mvn compile   # Backend
+    ```
+  </Step>
+  
+  <Step title="Run Tests">
+    ```bash
+    mvn test      # Backend
+    ```
+  </Step>
+  
+  <Step title="Remove Debug Code">
+    Remove console.logs, System.out.println, commented code
+  </Step>
+  
+  <Step title="Update Documentation">
+    Update relevant docs if API or behavior changed
+  </Step>
+</Steps>
+
+<Warning>
+  Never commit:
+  - Credentials or API keys
+  - `.env` files with sensitive data
+  - Large binary files
+  - Commented-out code blocks
+  - `console.log` or debug statements
+</Warning>

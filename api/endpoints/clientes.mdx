@@ -1,0 +1,443 @@
+---
+title: 'Clientes API'
+description: 'Endpoints for customer management'
+---
+
+## Customer Management
+
+### Get All Customers
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/clientes \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/clientes`
+
+Retrieves all customers with their route information.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Response
+
+Returns an array of ClienteDTO objects with route information.
+
+<ResponseField name="id" type="long">
+  Customer ID
+</ResponseField>
+
+<ResponseField name="nombreNegocio" type="string">
+  Business name
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Contact person name
+</ResponseField>
+
+<ResponseField name="contacto" type="string">
+  Contact phone number
+</ResponseField>
+
+<ResponseField name="direccion" type="string">
+  Customer address
+</ResponseField>
+
+<ResponseField name="latitud" type="double">
+  Latitude coordinate for geolocation
+</ResponseField>
+
+<ResponseField name="longitud" type="double">
+  Longitude coordinate for geolocation
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Customer email address
+</ResponseField>
+
+<ResponseField name="precioCorriente" type="double">
+  Custom price for regular products
+</ResponseField>
+
+<ResponseField name="precioEspecial" type="double">
+  Custom price for special products
+</ResponseField>
+
+<ResponseField name="nombreRuta" type="string">
+  Name of the assigned delivery route
+</ResponseField>
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "nombreNegocio": "Panadería El Sol",
+    "nombre": "Roberto Sánchez",
+    "contacto": "+52 555-1234",
+    "direccion": "Av. Principal 123, CDMX",
+    "latitud": 19.4326,
+    "longitud": -99.1332,
+    "email": "contacto@panaderiaelsol.com",
+    "precioCorriente": 45.50,
+    "precioEspecial": 52.00,
+    "nombreRuta": "Ruta Norte"
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customers retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Create Customer
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/clientes \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombreNegocio": "Cafetería Central",
+    "nombre": "Ana López",
+    "direccion": "Calle 5 de Mayo 456",
+    "contacto": "+52 555-5678",
+    "email": "ana@cafeteriacentral.com",
+    "latitud": 19.4285,
+    "longitud": -99.1277,
+    "precioCorriente": 46.00,
+    "precioEspecial": 53.50
+  }'
+```
+</RequestExample>
+
+**POST** `/clientes`
+
+Creates a new customer in the system.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="nombreNegocio" type="string" required>
+  Business name
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  Contact person name
+</ParamField>
+
+<ParamField body="direccion" type="string" required>
+  Customer address
+</ParamField>
+
+<ParamField body="contacto" type="string" required>
+  Contact phone number
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  Customer email address
+</ParamField>
+
+<ParamField body="latitud" type="double">
+  Latitude coordinate
+</ParamField>
+
+<ParamField body="longitud" type="double">
+  Longitude coordinate
+</ParamField>
+
+<ParamField body="precioCorriente" type="double">
+  Custom price for regular products
+</ParamField>
+
+<ParamField body="precioEspecial" type="double">
+  Custom price for special products
+</ParamField>
+
+#### Response
+
+Returns the created Cliente object.
+
+<ResponseExample>
+```json
+{
+  "id": 2,
+  "nombreNegocio": "Cafetería Central",
+  "nombre": "Ana López",
+  "direccion": "Calle 5 de Mayo 456",
+  "contacto": "+52 555-5678",
+  "email": "ana@cafeteriacentral.com",
+  "latitud": 19.4285,
+  "longitud": -99.1277,
+  "precioCorriente": 46.00,
+  "precioEspecial": 53.50
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customer created successfully
+- `400 Bad Request` - Invalid input data
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Customer by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/clientes/cliente/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/clientes/cliente/{id}`
+
+Retrieves a specific customer by their ID.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Customer ID
+</ParamField>
+
+#### Response
+
+Returns a ClienteDTO object.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombreNegocio": "Panadería El Sol",
+  "nombre": "Roberto Sánchez",
+  "contacto": "+52 555-1234",
+  "direccion": "Av. Principal 123, CDMX",
+  "latitud": 19.4326,
+  "longitud": -99.1332,
+  "email": "contacto@panaderiaelsol.com",
+  "precioCorriente": 45.50,
+  "precioEspecial": 52.00,
+  "nombreRuta": "Ruta Norte"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customer found
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Customer not found
+
+---
+
+### Get Customers by IDs
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/clientes/1,2,3 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/clientes/{id}`
+
+Retrieves multiple customers by providing a comma-separated list of IDs.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="List<Long>" required>
+  Comma-separated list of customer IDs (e.g., 1,2,3)
+</ParamField>
+
+#### Response
+
+Returns an array of ClienteDTO objects.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "nombreNegocio": "Panadería El Sol",
+    "nombre": "Roberto Sánchez",
+    "contacto": "+52 555-1234",
+    "direccion": "Av. Principal 123, CDMX",
+    "latitud": 19.4326,
+    "longitud": -99.1332,
+    "email": "contacto@panaderiaelsol.com",
+    "precioCorriente": 45.50,
+    "precioEspecial": 52.00,
+    "nombreRuta": "Ruta Norte"
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customers retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Update Customer
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.fluxora.com/clientes/1 \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombreNegocio": "Panadería El Sol Actualizada",
+    "nombre": "Roberto Sánchez García",
+    "direccion": "Av. Principal 123-A, CDMX",
+    "contacto": "+52 555-1234",
+    "email": "nuevo@panaderiaelsol.com",
+    "latitud": 19.4326,
+    "longitud": -99.1332,
+    "precioCorriente": 47.00,
+    "precioEspecial": 54.00
+  }'
+```
+</RequestExample>
+
+**PUT** `/clientes/{id}`
+
+Updates an existing customer's information.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Customer ID to update
+</ParamField>
+
+#### Request Body
+
+All fields from the Cliente entity can be updated.
+
+<ParamField body="nombreNegocio" type="string">
+  Updated business name
+</ParamField>
+
+<ParamField body="nombre" type="string">
+  Updated contact person name
+</ParamField>
+
+<ParamField body="direccion" type="string">
+  Updated address
+</ParamField>
+
+<ParamField body="contacto" type="string">
+  Updated contact phone
+</ParamField>
+
+<ParamField body="email" type="string">
+  Updated email
+</ParamField>
+
+<ParamField body="latitud" type="double">
+  Updated latitude
+</ParamField>
+
+<ParamField body="longitud" type="double">
+  Updated longitude
+</ParamField>
+
+<ParamField body="precioCorriente" type="double">
+  Updated price for regular products
+</ParamField>
+
+<ParamField body="precioEspecial" type="double">
+  Updated price for special products
+</ParamField>
+
+#### Response
+
+Returns the updated Cliente object.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombreNegocio": "Panadería El Sol Actualizada",
+  "nombre": "Roberto Sánchez García",
+  "direccion": "Av. Principal 123-A, CDMX",
+  "contacto": "+52 555-1234",
+  "email": "nuevo@panaderiaelsol.com",
+  "latitud": 19.4326,
+  "longitud": -99.1332,
+  "precioCorriente": 47.00,
+  "precioEspecial": 54.00
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customer updated successfully
+- `400 Bad Request` - Invalid input data
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Customer not found
+
+---
+
+### Delete Customer
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/clientes/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/clientes/{id}`
+
+Deletes a customer from the system.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Customer ID to delete
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+"Cliente eliminado exitosamente"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customer deleted successfully
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Customer not found

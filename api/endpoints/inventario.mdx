@@ -1,0 +1,1118 @@
+---
+title: 'Inventario API'
+description: 'Endpoints for inventory management including products, raw materials, recipes, and batches'
+---
+
+## Products
+
+### List All Products
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/productos \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/productos`
+
+Retrieves all products in the inventory.
+
+#### Response
+
+Returns an array of ProductoDTO objects.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Pan Corriente",
+    "descripcion": "Pan tradicional",
+    "unidadMedida": "kg"
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Products retrieved successfully
+
+---
+
+### Get Product by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/productos/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/productos/{id}`
+
+Retrieves a specific product by ID.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Product ID
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombre": "Pan Corriente",
+  "descripcion": "Pan tradicional",
+  "unidadMedida": "kg"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Product found
+- `404 Not Found` - Product not found
+
+---
+
+### Create Product
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/productos \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Pan Especial",
+    "descripcion": "Pan artesanal premium",
+    "unidadMedida": "kg"
+  }'
+```
+</RequestExample>
+
+**POST** `/productos`
+
+Creates a new product.
+
+#### Request Body
+
+<ParamField body="nombre" type="string" required>
+  Product name
+</ParamField>
+
+<ParamField body="descripcion" type="string">
+  Product description
+</ParamField>
+
+<ParamField body="unidadMedida" type="string" required>
+  Unit of measurement (e.g., kg, unidad)
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+{
+  "id": 2,
+  "nombre": "Pan Especial",
+  "descripcion": "Pan artesanal premium",
+  "unidadMedida": "kg"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Product created successfully
+- `400 Bad Request` - Invalid input data
+
+---
+
+### Update Product
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.fluxora.com/productos/1 \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Pan Corriente Premium",
+    "descripcion": "Pan tradicional mejorado",
+    "unidadMedida": "kg"
+  }'
+```
+</RequestExample>
+
+**PUT** `/productos/{id}`
+
+Updates an existing product.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Product ID
+</ParamField>
+
+#### Request Body
+
+All ProductoDTO fields can be updated.
+
+#### Response
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombre": "Pan Corriente Premium",
+  "descripcion": "Pan tradicional mejorado",
+  "unidadMedida": "kg"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Product updated successfully
+- `404 Not Found` - Product not found
+
+---
+
+### Delete Product
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/productos/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/productos/{id}`
+
+Deletes a product from the system.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Product ID
+</ParamField>
+
+#### Status Codes
+
+- `204 No Content` - Product deleted successfully
+- `404 Not Found` - Product not found
+
+---
+
+## Product Batches
+
+### Create Product Batch
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/productos/1/lotes \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fechaProduccion": "2024-03-15",
+    "fechaVencimiento": "2024-03-22",
+    "cantidadProducida": 100,
+    "cantidadDisponible": 100
+  }'
+```
+</RequestExample>
+
+**POST** `/productos/{productoId}/lotes`
+
+Creates a new batch for a product.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Request Body
+
+<ParamField body="fechaProduccion" type="LocalDate" required>
+  Production date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="fechaVencimiento" type="LocalDate" required>
+  Expiration date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="cantidadProducida" type="integer" required>
+  Quantity produced
+</ParamField>
+
+<ParamField body="cantidadDisponible" type="integer" required>
+  Available quantity
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Batch created successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### List Product Batches
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/productos/1/lotes \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/productos/{productoId}/lotes`
+
+Retrieves all batches for a specific product.
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Batches retrieved successfully
+
+---
+
+### Get Available Batches
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/productos/1/lotes/disponibles \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/productos/{productoId}/lotes/disponibles`
+
+Retrieves all available (non-expired, quantity > 0) batches for a product.
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Available batches retrieved successfully
+
+---
+
+### Get Batches by Expiration Date
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/productos/1/lotes/por-vencimiento \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/productos/{productoId}/lotes/por-vencimiento`
+
+Retrieves batches ordered by expiration date (FIFO).
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Batches retrieved successfully
+
+---
+
+### Get Total Stock
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/productos/1/stock-total \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/productos/{productoId}/stock-total`
+
+Retrieves the total available stock across all batches for a product.
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+250
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Total stock retrieved successfully
+
+---
+
+### Deduct Stock
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.fluxora.com/productos/1/descontar-stock \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cantidad": 50,
+    "motivo": "venta"
+  }'
+```
+</RequestExample>
+
+**PUT** `/productos/{productoId}/descontar-stock`
+
+Deducts stock from available batches using FIFO (First In, First Out) method.
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Request Body
+
+Accepts a Map with stock deduction details.
+
+#### Status Codes
+
+- `200 OK` - Stock deducted successfully
+- `400 Bad Request` - Insufficient stock
+
+---
+
+## Raw Materials
+
+### List Raw Materials
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/materias-primas \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/materias-primas`
+
+Retrieves all raw materials.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Response
+
+Returns an array of MateriaPrimaDTO objects.
+
+#### Status Codes
+
+- `200 OK` - Raw materials retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Create Raw Material
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/materias-primas \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Harina de Trigo",
+    "unidadMedida": "kg",
+    "stockActual": 500.0
+  }'
+```
+</RequestExample>
+
+**POST** `/materias-primas`
+
+Creates a new raw material.
+
+#### Request Body
+
+<ParamField body="nombre" type="string" required>
+  Raw material name
+</ParamField>
+
+<ParamField body="unidadMedida" type="string" required>
+  Unit of measurement
+</ParamField>
+
+<ParamField body="stockActual" type="double">
+  Current stock quantity
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Raw material created successfully
+
+---
+
+### Update Raw Material
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.fluxora.com/materias-primas/1 \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 1,
+    "nombre": "Harina de Trigo Premium",
+    "unidadMedida": "kg",
+    "stockActual": 600.0
+  }'
+```
+</RequestExample>
+
+**PUT** `/materias-primas/{id}`
+
+Updates an existing raw material.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Raw material ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Raw material updated successfully
+
+---
+
+### Update Stock
+
+<RequestExample>
+```bash cURL
+curl -X PATCH "https://api.fluxora.com/materias-primas/1/stock?cantidad=100" \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**PATCH** `/materias-primas/{id}/stock`
+
+Updates the stock quantity for a raw material.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Raw material ID
+</ParamField>
+
+#### Query Parameters
+
+<ParamField query="cantidad" type="double" required>
+  New stock quantity
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Stock updated successfully
+
+---
+
+### Delete Raw Material
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/materias-primas/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/materias-primas/{id}`
+
+Deletes a raw material.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Raw material ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Raw material deleted successfully
+
+---
+
+### Search Raw Materials by Name
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/materias-primas/buscar/Harina \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/materias-primas/buscar/{nombre}`
+
+Searches raw materials by name.
+
+#### Path Parameters
+
+<ParamField path="nombre" type="string" required>
+  Name to search for
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Search results returned
+
+---
+
+## Raw Material Batches
+
+### Create Raw Material Batch
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/materias-primas/1/lotes \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fechaCompra": "2024-03-15",
+    "fechaVencimiento": "2025-03-15",
+    "cantidad": 500.0,
+    "proveedor": "Molinos SA"
+  }'
+```
+</RequestExample>
+
+**POST** `/materias-primas/{materiaId}/lotes`
+
+Creates a new batch for a raw material.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="materiaId" type="long" required>
+  Raw material ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Batch created successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### List Raw Material Batches
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/materias-primas/1/lotes \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/materias-primas/{materiaId}/lotes`
+
+Retrieves all batches for a raw material.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="materiaId" type="long" required>
+  Raw material ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Batches retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+## Recipes
+
+### List All Recipes
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/recetas \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/recetas`
+
+Retrieves all recipes in the system.
+
+#### Response
+
+Returns an array of Receta objects.
+
+#### Status Codes
+
+- `200 OK` - Recipes retrieved successfully
+
+---
+
+### Get Recipe by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/recetas/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/recetas/{id}`
+
+Retrieves a specific recipe by ID.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Recipe ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Recipe found
+- `404 Not Found` - Recipe not found
+
+---
+
+### Get Recipes by Product
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/recetas/producto/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/recetas/producto/{productoId}`
+
+Retrieves all recipes for a specific product.
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Recipes retrieved successfully
+
+---
+
+### Create Recipe
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/recetas \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productoId": 1,
+    "materiaPrimaId": 1,
+    "cantidad": 2.5,
+    "unidadMedida": "kg"
+  }'
+```
+</RequestExample>
+
+**POST** `/recetas`
+
+Creates a new recipe.
+
+#### Request Body
+
+<ParamField body="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+<ParamField body="materiaPrimaId" type="long" required>
+  Raw material ID
+</ParamField>
+
+<ParamField body="cantidad" type="double" required>
+  Quantity required
+</ParamField>
+
+<ParamField body="unidadMedida" type="string" required>
+  Unit of measurement
+</ParamField>
+
+#### Status Codes
+
+- `201 Created` - Recipe created successfully
+- `400 Bad Request` - Invalid input data
+
+---
+
+### Update Recipe
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.fluxora.com/recetas/1 \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productoId": 1,
+    "materiaPrimaId": 1,
+    "cantidad": 3.0,
+    "unidadMedida": "kg"
+  }'
+```
+</RequestExample>
+
+**PUT** `/recetas/{id}`
+
+Updates an existing recipe.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Recipe ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Recipe updated successfully
+- `404 Not Found` - Recipe not found
+
+---
+
+### Delete Recipe
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/recetas/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/recetas/{id}`
+
+Deletes a recipe.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Recipe ID
+</ParamField>
+
+#### Status Codes
+
+- `204 No Content` - Recipe deleted successfully
+- `404 Not Found` - Recipe not found
+
+---
+
+### Delete Recipes by Product
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/recetas/producto/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/recetas/producto/{productoId}`
+
+Deletes all recipes associated with a product.
+
+#### Path Parameters
+
+<ParamField path="productoId" type="long" required>
+  Product ID
+</ParamField>
+
+#### Status Codes
+
+- `204 No Content` - Recipes deleted successfully
+- `400 Bad Request` - Error deleting recipes
+
+---
+
+## Purchases
+
+### Create Purchase
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/compras \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "proveedor": "Molinos SA",
+    "numDoc": "F001-12345",
+    "detalles": [
+      {
+        "materiaPrimaId": 1,
+        "cantidad": 500.0,
+        "precioUnitario": 2.50
+      }
+    ]
+  }'
+```
+</RequestExample>
+
+**POST** `/compras`
+
+Creates a new raw material purchase.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="proveedor" type="string" required>
+  Supplier name
+</ParamField>
+
+<ParamField body="numDoc" type="string" required>
+  Document number (invoice)
+</ParamField>
+
+<ParamField body="detalles" type="array" required>
+  Array of purchase details
+</ParamField>
+
+#### Status Codes
+
+- `201 Created` - Purchase created successfully
+- `400 Bad Request` - Invalid input data
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### List Purchases
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/compras \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/compras`
+
+Retrieves all purchases.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Status Codes
+
+- `200 OK` - Purchases retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Purchase by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/compras/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/compras/{id}`
+
+Retrieves a specific purchase by ID.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Purchase ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Purchase found
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Purchase not found
+
+---
+
+### Search Purchases by Supplier
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/compras/proveedor/Molinos%20SA \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/compras/proveedor/{proveedor}`
+
+Searches purchases by supplier name.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="proveedor" type="string" required>
+  Supplier name
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Purchases found
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Recent Purchases
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.fluxora.com/compras/recientes?dias=30" \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/compras/recientes`
+
+Retrieves recent purchases within specified days.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Query Parameters
+
+<ParamField query="dias" type="integer" default="30">
+  Number of days to look back
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Purchases retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+## Production Inputs
+
+### List Production Inputs
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/insumos-produccion \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/insumos-produccion`
+
+Retrieves all production inputs (consumables used in production).
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Status Codes
+
+- `200 OK` - Inputs retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Create Production Input
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/insumos-produccion \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Bolsas de empaque",
+    "unidadMedida": "unidad",
+    "stockActual": 1000
+  }'
+```
+</RequestExample>
+
+**POST** `/insumos-produccion`
+
+Creates a new production input.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Status Codes
+
+- `200 OK` - Input created successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Delete Production Input
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/insumos-produccion/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/insumos-produccion/{id}`
+
+Deletes a production input.
+
+<Note>
+  Requires **ADMIN** or **PRODUCER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Production input ID
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Input deleted successfully
+- `403 Forbidden` - Insufficient permissions

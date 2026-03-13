@@ -1,0 +1,552 @@
+---
+title: 'Spring Boot Services'
+description: 'Spring Boot 3.5 service architecture, dependency injection, and development patterns'
+icon: 'spring'
+---
+
+## Overview
+
+Fluxora microservices are built with **Spring Boot 3.5.4** and follow modern Java 21 development patterns. Each service is independently deployable and communicates via REST APIs.
+
+## Project Structure
+
+### Standard Microservice Layout
+
+```
+microservice-cliente/
+├── src/main/java/com/microservice/cliente/
+│   ├── MicroserviceClienteApplication.java  # Main application class
+│   ├── config/                              # Configuration classes
+│   │   ├── SecurityConfig.java
+│   │   └── FeignClientInterceptor.java
+│   ├── controller/                          # REST controllers
+│   │   └── ClienteController.java
+│   ├── service/                             # Business logic layer
+│   │   └── ClienteService.java
+│   ├── repository/                          # Data access layer
+│   │   └── ClienteRepository.java
+│   ├── entity/                              # JPA entities
+│   │   └── Cliente.java
+│   ├── dto/                                 # Data transfer objects
+│   │   └── ClienteDTO.java
+│   ├── mapper/                              # MapStruct mappers
+│   │   └── ClienteMapper.java
+│   ├── client/                              # Feign clients
+│   │   └── EntregaServiceClient.java
+│   ├── security/                            # Security components
+│   │   ├── JwtUtils.java
+│   │   └── JwtAuthenticationFilter.java
+│   └── exception/                           # Exception handlers
+│       └── GlobalExceptionHandler.java
+└── pom.xml
+```
+
+## Application Bootstrap
+
+### Main Application Class
+
+Each microservice has a main application class with key annotations:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/MicroserviceClienteApplication.java
+package com.microservice.cliente;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+@SpringBootApplication        // Auto-configuration and component scanning
+@EnableFeignClients          // Enable OpenFeign declarative REST clients
+@EnableDiscoveryClient       // Register with Eureka service registry
+public class MicroserviceClienteApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(MicroserviceClienteApplication.class, args);
+    }
+}
+```
+
+<Note>
+**Key Annotations:**
+- `@SpringBootApplication`: Combines `@Configuration`, `@EnableAutoConfiguration`, and `@ComponentScan`
+- `@EnableFeignClients`: Scans for `@FeignClient` interfaces
+- `@EnableDiscoveryClient`: Enables service discovery via Eureka
+</Note>
+
+## Dependency Injection Patterns
+
+### Constructor Injection (Recommended)
+
+All services use **constructor-based dependency injection** for better testability and immutability:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/service/ClienteService.java
+@Slf4j
+@Service
+public class ClienteService {
+
+    private final ClienteRepository clienteRepository;
+    private final EntregaServiceClient entregaServiceClient;
+    private final ClienteMapper clienteMapper;
+
+    // Constructor injection - no @Autowired needed in Spring 4.3+
+    public ClienteService(ClienteRepository clienteRepository, 
+                         EntregaServiceClient entregaServiceClient,
+                         ClienteMapper clienteMapper) {
+        this.clienteRepository = clienteRepository;
+        this.entregaServiceClient = entregaServiceClient;
+        this.clienteMapper = clienteMapper;
+    }
+
+    // Service methods...
+}
+```
+
+<Check>
+**Benefits of Constructor Injection:**
+- Fields can be `final`, ensuring immutability
+- Dependencies are explicit and required
+- Easier to test with mock objects
+- No need for `@Autowired` annotation
+</Check>
+
+### Field Injection (Legacy Pattern)
+
+```java
+@RestController
+@RequestMapping("/clientes")
+public class ClienteController {
+
+    @Autowired  // Legacy pattern - avoid in new code
+    private ClienteService clienteService;
+}
+```
+
+<Warning>
+Field injection makes testing harder and hides dependencies. Use constructor injection instead.
+</Warning>
+
+## Service Layer Architecture
+
+### Service Responsibilities
+
+Services contain **business logic** and orchestrate operations:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/service/ClienteService.java
+@Slf4j
+@Service
+public class ClienteService {
+
+    // 1. Simple CRUD operations
+    public Cliente addCliente(Cliente cliente) {
+        return clienteRepository.save(cliente);
+    }
+
+    // 2. Business logic with external service calls
+    public List<ClienteDTO> getAllClientesConInfoRuta() {
+        List<Cliente> clientes = clienteRepository.findAll();
+        
+        if(clientes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> clienteIds = clientes.stream()
+                .map(Cliente::getId)
+                .collect(Collectors.toList());
+
+        // Call external service via Feign
+        Map<String, String> rutasPorCliente = obtenerNombresRutaBatch(clienteIds);
+
+        // Map entities to DTOs
+        return clientes.stream().map(
+            cliente -> {
+                String nombreRuta = rutasPorCliente.getOrDefault(
+                    cliente.getId().toString(), 
+                    "Sin ruta asignada"
+                );
+                return clienteMapper.toDTO(cliente, nombreRuta);
+            }
+        ).collect(Collectors.toList());
+    }
+
+    // 3. Error handling with custom exceptions
+    @Transactional
+    public void deleteCliente(Long id) {
+        clienteRepository.findById(id)
+            .orElseThrow(() -> new ClienteNotFoundException(id));
+        
+        try {
+            entregaServiceClient.eliminarRelacionesCliente(id);
+            clienteRepository.deleteById(id);
+            log.info("Cliente con ID {} eliminado exitosamente", id);
+        } catch (Exception e) {
+            log.error("Error al eliminar cliente con ID {}: {}", id, e.getMessage(), e);
+            throw new ClienteDeleteException(id, e);
+        }
+    }
+}
+```
+
+<Tip>
+Use `@Slf4j` (Lombok) for logging instead of manually creating logger instances.
+</Tip>
+
+### Service Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use @Transactional" icon="database">
+    Mark methods that modify data with `@Transactional` to ensure ACID properties
+  </Card>
+  <Card title="Handle Nulls Gracefully" icon="shield-check">
+    Return empty collections instead of null, use `Optional<T>` for single results
+  </Card>
+  <Card title="Log Important Events" icon="file-lines">
+    Log errors with context, info for business events, debug for detailed flow
+  </Card>
+  <Card title="Validate Input" icon="circle-exclamation">
+    Validate parameters early and throw meaningful exceptions
+  </Card>
+</CardGroup>
+
+## Controller Patterns
+
+### REST Controller Structure
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/controller/ClienteController.java
+@RestController
+@RequestMapping("/clientes")
+public class ClienteController {
+
+    @Autowired
+    private ClienteService clienteService;
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping()
+    public List<ClienteDTO> getAllClientes() {
+        return clienteService.getAllClientesConInfoRuta();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping()
+    public Cliente addCliente(@RequestBody Cliente cliente) {
+        return clienteService.addCliente(cliente);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'DRIVER')")
+    @GetMapping("/{id}")
+    public List<ClienteDTO> getClienteByIds(@PathVariable List<Long> id) {
+        return clienteService.getClienteByIds(id);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteCliente(@PathVariable Long id) {
+        clienteService.deleteCliente(id);
+        return ResponseEntity.ok("Cliente eliminado exitosamente");
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<Cliente> updateCliente(
+            @PathVariable Long id, 
+            @RequestBody Cliente clienteDetails) {
+        ResponseEntity<Cliente> updatedCliente = clienteService.updateCliente(id, clienteDetails);
+        return ResponseEntity.ok(updatedCliente.getBody());
+    }
+}
+```
+
+### Controller Annotations
+
+| Annotation | Purpose | Example |
+|------------|---------|----------|
+| `@RestController` | Combines `@Controller` + `@ResponseBody` | Class level |
+| `@RequestMapping` | Base path for all endpoints | `@RequestMapping("/clientes")` |
+| `@GetMapping` | HTTP GET endpoint | `@GetMapping("/{id}")` |
+| `@PostMapping` | HTTP POST endpoint | `@PostMapping()` |
+| `@PutMapping` | HTTP PUT endpoint | `@PutMapping("/{id}")` |
+| `@DeleteMapping` | HTTP DELETE endpoint | `@DeleteMapping("/{id}")` |
+| `@PathVariable` | Extract URL path parameter | `@PathVariable Long id` |
+| `@RequestBody` | Bind request JSON to object | `@RequestBody Cliente cliente` |
+| `@PreAuthorize` | Role-based authorization | `@PreAuthorize("hasRole('ADMIN')")` |
+
+See [security.mdx](/development/security) for authorization details.
+
+## Exception Handling
+
+### Global Exception Handler
+
+Use `@RestControllerAdvice` for centralized exception handling:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/exception/GlobalExceptionHandler.java
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ClienteNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleClienteNotFound(ClienteNotFoundException ex) {
+        log.warn("Cliente no encontrado: {}", ex.getMessage());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Cliente no encontrado");
+        response.put("message", ex.getMessage());
+        response.put("status", HttpStatus.NOT_FOUND.value());
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(ClienteDeleteException.class)
+    public ResponseEntity<Map<String, Object>> handleClienteDeleteError(ClienteDeleteException ex) {
+        log.error("Error al eliminar cliente: {}", ex.getMessage(), ex);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Error al eliminar cliente");
+        response.put("message", ex.getMessage());
+        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        log.error("Error inesperado: {}", ex.getMessage(), ex);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Error interno del servidor");
+        response.put("message", ex.getMessage());
+        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+}
+```
+
+### Custom Exceptions
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/exception/ClienteNotFoundException.java
+public class ClienteNotFoundException extends RuntimeException {
+    public ClienteNotFoundException(Long id) {
+        super("Cliente no encontrado con ID: " + id);
+    }
+}
+
+public class ClienteDeleteException extends RuntimeException {
+    public ClienteDeleteException(Long id, Throwable cause) {
+        super("Error al eliminar cliente con ID: " + id, cause);
+    }
+}
+```
+
+## Testing Strategies
+
+### Unit Tests with JUnit 5 and Mockito
+
+#### Service Layer Tests
+
+```java microservice-cliente/src/test/java/com/microservice/cliente/service/ClienteServiceTest.java
+@ExtendWith(MockitoExtension.class)
+@DisplayName("ClienteService Tests")
+class ClienteServiceTest {
+
+    @Mock
+    private ClienteRepository clienteRepository;
+
+    @Mock
+    private EntregaServiceClient entregaServiceClient;
+
+    @InjectMocks
+    private ClienteService clienteService;
+
+    private Cliente clienteTest;
+
+    @BeforeEach
+    void setUp() {
+        clienteTest = new Cliente();
+        clienteTest.setId(1L);
+        clienteTest.setNombre("Cliente Test");
+        clienteTest.setEmail("test@test.com");
+    }
+
+    @Test
+    @DisplayName("Debería agregar un cliente exitosamente")
+    void testAddCliente_Success() {
+        // Arrange
+        when(clienteRepository.save(any(Cliente.class))).thenReturn(clienteTest);
+
+        // Act
+        Cliente resultado = clienteService.addCliente(clienteTest);
+
+        // Assert
+        assertNotNull(resultado);
+        assertEquals(1L, resultado.getId());
+        assertEquals("Cliente Test", resultado.getNombre());
+        verify(clienteRepository).save(clienteTest);
+    }
+
+    @Test
+    @DisplayName("Debería lanzar excepción cuando cliente no existe")
+    void testDeleteCliente_NotFound() {
+        // Arrange
+        when(clienteRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        RuntimeException exception = assertThrows(RuntimeException.class, 
+            () -> clienteService.deleteCliente(999L));
+        
+        assertTrue(exception.getMessage().contains("Cliente no encontrado"));
+        verify(clienteRepository).findById(999L);
+        verify(entregaServiceClient, never()).eliminarRelacionesCliente(anyLong());
+    }
+}
+```
+
+#### Controller Layer Tests
+
+```java microservice-cliente/src/test/java/com/microservice/cliente/controller/ClienteControllerTest.java
+@WebMvcTest(value = ClienteController.class, 
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class
+    })
+@AutoConfigureMockMvc(addFilters = false)
+@DisplayName("ClienteController Tests")
+class ClienteControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private ClienteService clienteService;
+
+    @Test
+    @DisplayName("Debería obtener cliente por ID")
+    void deberiaObtenerClientePorId() throws Exception {
+        ClienteDTO clienteDTO = new ClienteDTO();
+        clienteDTO.setId(1L);
+        clienteDTO.setNombre("Cliente Test");
+        
+        when(clienteService.getClienteById(1L)).thenReturn(clienteDTO);
+
+        mockMvc.perform(get("/clientes/cliente/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.nombre").value("Cliente Test"));
+
+        verify(clienteService).getClienteById(1L);
+    }
+
+    @Test
+    @DisplayName("Debería crear cliente exitosamente")
+    void deberiaCrearClienteExitosamente() throws Exception {
+        Cliente cliente = new Cliente();
+        cliente.setNombre("Nuevo Cliente");
+        
+        when(clienteService.addCliente(any(Cliente.class))).thenReturn(cliente);
+
+        mockMvc.perform(post("/clientes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(cliente)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Nuevo Cliente"));
+    }
+}
+```
+
+### Test Annotations Reference
+
+| Annotation | Purpose |
+|------------|----------|
+| `@ExtendWith(MockitoExtension.class)` | Enable Mockito in JUnit 5 |
+| `@WebMvcTest` | Test only web layer (controllers) |
+| `@AutoConfigureMockMvc` | Configure MockMvc |
+| `@Mock` | Create mock instance |
+| `@MockBean` | Add mock to Spring context |
+| `@InjectMocks` | Inject mocks into tested class |
+| `@BeforeEach` | Run before each test |
+| `@DisplayName` | Custom test description |
+
+## Maven Dependencies
+
+```xml pom.xml
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.4</version>
+</parent>
+
+<properties>
+    <java.version>21</java.version>
+    <spring-cloud.version>2025.0.0</spring-cloud.version>
+    <mapstruct.version>1.6.3</mapstruct.version>
+</properties>
+
+<dependencies>
+    <!-- Spring Boot Starters -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- Spring Cloud -->
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+
+    <!-- Database -->
+    <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+
+    <!-- Utilities -->
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <optional>true</optional>
+    </dependency>
+    <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct</artifactId>
+        <version>${mapstruct.version}</version>
+    </dependency>
+
+    <!-- Testing -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="JPA Entities" icon="database" href="/development/jpa-entities">
+    Learn about entity design, relationships, and repositories
+  </Card>
+  <Card title="Security" icon="shield" href="/development/security">
+    JWT authentication and role-based authorization
+  </Card>
+  <Card title="Inter-Service Communication" icon="network-wired" href="/development/inter-service-communication">
+    OpenFeign clients and service integration
+  </Card>
+  <Card title="Architecture Overview" icon="sitemap" href="/architecture">
+    System-wide architecture and design patterns
+  </Card>
+</CardGroup>

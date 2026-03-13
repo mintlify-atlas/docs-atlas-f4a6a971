@@ -1,0 +1,546 @@
+---
+title: 'Producer Guide'
+description: 'Guide for producers managing inventory and production in Fluxora'
+icon: 'industry'
+---
+
+## Overview
+
+As a **Producer**, you are responsible for managing inventory, tracking production batches, maintaining raw material stock, and ensuring products are ready for delivery. Your role focuses on the production and inventory aspects of the Fluxora system.
+
+<Tip>
+Producers have full access to inventory management features but limited access to other system areas.
+</Tip>
+
+## Key Responsibilities
+
+Producers manage:
+- Product inventory and production batches
+- Raw materials and ingredient tracking
+- Recipes and production formulas
+- Stock level monitoring
+- Production planning based on delivery schedules
+
+---
+
+## Getting Started
+
+<Steps>
+  <Step title="Login to the System">
+    Navigate to the Fluxora login page and enter your producer credentials. Upon successful authentication, you'll be redirected to the inventory dashboard at `/dashboard/inventario`.
+  </Step>
+  
+  <Step title="Review Inventory Dashboard">
+    The producer dashboard displays:
+    - Current stock levels for all products
+    - Low stock alerts
+    - Recent production batches
+    - Raw material inventory
+    - Today's production requirements
+  </Step>
+  
+  <Step title="Access Inventory Sections">
+    Navigate between:
+    - **Products**: Finished goods ready for delivery
+    - **Raw Materials**: Ingredients and supplies
+    - **Batches**: Production runs and tracking
+    - **Recipes**: Product formulas and requirements
+  </Step>
+</Steps>
+
+---
+
+## Product Management
+
+### Viewing Products
+
+Access the complete product catalog showing:
+- Product name and type
+- Current total stock across all batches
+- Active batch count
+- Production status
+
+### Creating New Products
+
+When introducing a new product:
+
+<Steps>
+  <Step title="Navigate to Products">
+    Go to **Inventory** > **Products**
+  </Step>
+  
+  <Step title="Add Product">
+    Click "New Product" and enter:
+    - Product name (e.g., "Pan Corriente", "Pan Especial")
+    - Product description
+    - Unit of measure (typically kg for bread)
+    - Category or type
+  </Step>
+  
+  <Step title="Create Initial Batch">
+    After creating the product, create the first production batch with initial stock.
+  </Step>
+</Steps>
+
+### Updating Product Information
+
+1. Locate the product in the product list
+2. Click on the product to view details
+3. Select "Edit"
+4. Modify product information
+5. Save changes
+
+<Tip>
+Products themselves don't have stock - stock is tracked at the batch (lote) level to enable proper FIFO (First In, First Out) inventory management.
+</Tip>
+
+---
+
+## Production Batch Management
+
+### Understanding Batches (Lotes)
+
+Each production run creates a batch with:
+- **Fecha de Producción**: Production date
+- **Fecha de Vencimiento**: Expiration date
+- **Cantidad Inicial**: Initial quantity produced
+- **Stock Disponible**: Current available stock
+- **Estado**: Status (available, expired, depleted)
+
+### Creating Production Batches
+
+<Card title="Creating a New Batch" icon="plus">
+  Batches represent individual production runs and enable tracking of product freshness and FIFO inventory rotation.
+</Card>
+
+**Steps to create a batch:**
+
+```bash
+Endpoint: POST /api/inventario/productos/{productoId}/lotes
+Permission: ADMIN, PRODUCER
+```
+
+1. Navigate to **Products** section
+2. Select the product to produce
+3. Click "New Batch" or "Produce"
+4. Enter batch details:
+   - Production date (defaults to today)
+   - Expiration date (based on product shelf life)
+   - Quantity produced (in kg)
+5. Save the batch
+
+### Viewing Batch Details
+
+For each product, view:
+- All active batches
+- Batches sorted by expiration date
+- Available stock per batch
+- Batch production history
+
+### Updating Batches
+
+Modify batch information when needed:
+
+```bash
+Endpoint: PUT /api/inventario/productos/{productoId}/lotes/{loteId}
+Permission: ADMIN, PRODUCER
+```
+
+- Correct production dates
+- Adjust quantities (for count corrections)
+- Update expiration dates
+- Mark batches for priority use
+
+### Stock Deduction
+
+When deliveries are made, stock is automatically deducted:
+- System uses FIFO (oldest batches first)
+- Ensures freshest products reach customers
+- Tracks which batches were used for each delivery
+
+### Viewing Available Stock
+
+Check current available stock:
+
+```bash
+Endpoint: GET /api/inventario/productos/{productoId}/lotes/disponibles
+```
+
+Shows only batches with available quantity that haven't expired.
+
+---
+
+## Raw Materials Management
+
+### Viewing Raw Material Inventory
+
+Access the raw materials (materias primas) section to see:
+
+```bash
+Endpoint: GET /api/inventario/materias-primas
+Permission: ADMIN, PRODUCER
+```
+
+- Material name (flour, yeast, salt, etc.)
+- Current stock quantity
+- Unit of measure
+- Cost per unit
+- Supplier information
+
+### Adding New Raw Materials
+
+When tracking a new ingredient:
+
+<Steps>
+  <Step title="Access Raw Materials">
+    Navigate to **Inventory** > **Raw Materials**
+  </Step>
+  
+  <Step title="Create Material">
+    Click "Add Material" and enter:
+    - Material name
+    - Unit of measure (kg, units, liters, etc.)
+    - Initial stock quantity
+    - Cost per unit
+    - Supplier details
+  </Step>
+  
+  <Step title="Set Reorder Level">
+    Optionally set a minimum stock level for alerts
+  </Step>
+</Steps>
+
+### Recording Purchases
+
+When raw materials arrive:
+
+1. Go to **Raw Materials** > **Record Purchase**
+2. Select the material
+3. Enter:
+   - Quantity received
+   - Purchase cost
+   - Purchase date
+   - Supplier
+4. System automatically updates stock levels
+
+### Updating Stock Levels
+
+Manually adjust stock for corrections:
+
+```bash
+Endpoint: PATCH /api/inventario/materias-primas/{id}/stock?cantidad={cantidad}
+```
+
+- Positive values add to stock
+- Negative values reduce stock
+- Use for inventory counts or corrections
+
+### Low Stock Alerts
+
+<Warning>
+Monitor raw materials regularly to avoid production delays. Set reorder points to receive alerts before materials run out.
+</Warning>
+
+---
+
+## Recipe Management
+
+### Understanding Recipes
+
+Recipes (recetas) define:
+- Which raw materials are needed
+- Quantity of each material
+- Material costs
+- Production yield
+
+This enables:
+- Accurate cost calculation
+- Production planning
+- Material requirement forecasting
+
+### Creating Recipes
+
+<Card title="Recipe Creation" icon="book">
+  Each product should have at least one recipe defining its ingredients and proportions.
+</Card>
+
+**Steps to create a recipe:**
+
+1. Navigate to **Recipes** section
+2. Click "New Recipe"
+3. Select the product this recipe is for
+4. Add ingredients:
+   - Select raw material
+   - Enter quantity needed per unit of production
+   - Repeat for all ingredients
+5. Save the recipe
+
+### Viewing Product Recipes
+
+For any product, view:
+
+```bash
+Endpoint: GET /api/inventario/recetas/producto/{productoId}
+```
+
+- All associated recipes
+- Ingredient lists
+- Quantities and proportions
+- Total cost per production unit
+
+### Updating Recipes
+
+When formulas change:
+
+1. Locate the recipe
+2. Select "Edit"
+3. Modify ingredients or quantities
+4. Save changes
+
+<Tip>
+Keep historical recipes even when updating. This helps track cost changes over time and maintains production records.
+</Tip>
+
+### Deleting Recipes
+
+Remove obsolete recipes:
+- Verify recipe is no longer in use
+- Confirm deletion
+- System removes recipe and all ingredient associations
+
+---
+
+## Production Planning
+
+### Viewing Daily Requirements
+
+Check what needs to be produced:
+
+<Steps>
+  <Step title="Access Production Plan">
+    View the daily production plan showing scheduled deliveries
+  </Step>
+  
+  <Step title="Review Quantities">
+    See total kg needed by product type:
+    - Pan Corriente
+    - Pan Especial
+    - Other products
+  </Step>
+  
+  <Step title="Check Materials">
+    Verify raw material availability for planned production
+  </Step>
+  
+  <Step title="Plan Production">
+    Schedule production batches to meet delivery requirements with buffer for quality control and waste
+  </Step>
+</Steps>
+
+### Material Requirements Calculation
+
+Based on recipes and production plan:
+1. System calculates total raw materials needed
+2. Compares against current stock
+3. Highlights any shortages
+4. Suggests purchase quantities
+
+### Production Scheduling
+
+Best practices for scheduling:
+
+- Produce in the morning for same-day delivery
+- Consider product shelf life
+- Build in buffer for quality control
+- Account for typical waste/mermas
+- Monitor batch sizes for efficiency
+
+---
+
+## Inventory Tracking
+
+### Stock Verification
+
+Regularly verify stock accuracy:
+
+<Accordion title="Daily Checks">
+  - Review available stock by product
+  - Check batch expiration dates
+  - Identify products nearing low stock
+  - Verify production completed successfully
+</Accordion>
+
+<Accordion title="Weekly Audits">
+  - Physical inventory count
+  - Compare system vs actual stock
+  - Adjust discrepancies
+  - Review slow-moving products
+</Accordion>
+
+### Waste Tracking (Mermas)
+
+Record production waste and losses:
+1. Navigate to **Waste Management**
+2. Select product and batch
+3. Enter:
+   - Quantity lost
+   - Reason (burnt, damaged, quality issue, etc.)
+   - Date
+4. System adjusts stock levels
+
+### Batch-Level Queries
+
+Use batch endpoints for detailed tracking:
+
+```bash
+# Get specific batch details
+GET /api/inventario/productos/lotes/{loteId}
+
+# Get multiple batches at once
+GET /api/inventario/productos/lotes-batch?ids=1,2,3
+```
+
+---
+
+## Reports and Analytics
+
+### Inventory Reports
+
+Generate reports for:
+
+<CardGroup cols={2}>
+  <Card title="Stock Levels" icon="boxes-stacked">
+    Current inventory by product with batch details and expiration tracking.
+  </Card>
+  
+  <Card title="Production History" icon="clock-rotate-left">
+    Historical production batches, quantities, and trends over time.
+  </Card>
+  
+  <Card title="Material Usage" icon="chart-line">
+    Raw material consumption rates and cost analysis.
+  </Card>
+  
+  <Card title="Waste Analysis" icon="triangle-exclamation">
+    Waste tracking by product, reason, and trend identification.
+  </Card>
+</CardGroup>
+
+### Cost Analysis
+
+Understand production costs:
+- Raw material costs per batch
+- Total production costs
+- Cost trends over time
+- Identify cost-saving opportunities
+
+---
+
+## Best Practices
+
+### Daily Producer Workflow
+
+1. **Early Morning**:
+   - Review today's delivery schedule
+   - Check production requirements
+   - Verify raw material availability
+   - Plan production batches
+
+2. **During Production**:
+   - Record batches as they complete
+   - Enter accurate quantities
+   - Mark expiration dates
+   - Track any waste
+
+3. **End of Day**:
+   - Verify all batches recorded
+   - Check stock levels
+   - Plan tomorrow's needs
+   - Identify reorder requirements
+
+### Inventory Management Tips
+
+<Tip>
+**FIFO is Critical**: Always use oldest batches first to minimize waste and ensure product freshness. The system does this automatically during deliveries.
+</Tip>
+
+<Tip>
+**Buffer Stock**: Maintain 10-15% buffer stock above scheduled deliveries to handle unexpected orders or quality issues.
+</Tip>
+
+<Tip>
+**Expiration Tracking**: Monitor expiration dates daily. Plan promotions or special offers for products nearing expiration.
+</Tip>
+
+### Quality Control
+
+- Verify batch quality before recording
+- Mark defective batches separately
+- Track quality issues for process improvement
+- Maintain consistent batch sizes
+
+### Data Accuracy
+
+<Warning>
+Accurate inventory data is critical. Always:
+- Record production immediately
+- Double-check quantities
+- Update waste/losses promptly
+- Reconcile physical counts regularly
+</Warning>
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordion title="Stock shows negative">
+  This indicates deliveries were recorded without sufficient batch stock. Check recent deliveries and create correction batches if needed.
+</Accordion>
+
+<Accordion title="Cannot create batch">
+  Verify you have PRODUCER or ADMIN role. Ensure the product exists and all required fields are completed.
+</Accordion>
+
+<Accordion title="Raw material not updating">
+  Check that purchases are being recorded correctly. Verify the material ID matches between purchase records and inventory.
+</Accordion>
+
+<Accordion title="Recipe costs seem wrong">
+  Review raw material costs per unit. Update material prices if they've changed. Verify recipe quantities are correct.
+</Accordion>
+
+---
+
+## Role Permissions
+
+As a PRODUCER, you can:
+
+✅ View and manage all products
+✅ Create, update, and delete production batches
+✅ Manage raw materials inventory
+✅ Create and modify recipes
+✅ View production plans and requirements
+✅ Generate inventory reports
+
+❌ Cannot manage users or system settings
+❌ Cannot assign routes or manage deliveries
+❌ Cannot access financial reports (admin only)
+❌ Cannot manage clients
+
+---
+
+## Getting Help
+
+If you encounter issues:
+
+1. Verify your role permissions (PRODUCER)
+2. Check that product/batch IDs are correct
+3. Review error messages for specific guidance
+4. Contact your administrator for permission issues
+5. Document inventory discrepancies for review
+
+<Tip>
+Your role is crucial to the supply chain. Accurate inventory management ensures drivers have the products they need and customers receive fresh, quality goods.
+</Tip>

@@ -1,0 +1,406 @@
+---
+title: 'Usuarios API'
+description: 'Endpoints for user authentication and management'
+---
+
+## Authentication
+
+### Login
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securePassword123"
+  }'
+```
+</RequestExample>
+
+**POST** `/auth/login`
+
+Authenticates a user and returns an access token.
+
+#### Request Body
+
+<ParamField body="email" type="string" required>
+  User's email address
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password
+</ParamField>
+
+#### Response
+
+<ResponseField name="accessToken" type="string">
+  JWT access token for authenticated requests
+</ResponseField>
+
+<ResponseField name="tokenType" type="string">
+  Token type (typically "Bearer")
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Login successful
+- `400 Bad Request` - Invalid credentials
+- `401 Unauthorized` - Authentication failed
+
+---
+
+## User Management
+
+### Get All Users
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/usuarios \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/usuarios`
+
+Retrieves a list of all users in the system.
+
+<Note>
+  This endpoint does not require specific role authorization.
+</Note>
+
+#### Response
+
+Returns an array of Usuario objects.
+
+<ResponseField name="id" type="long">
+  User ID
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  User's name
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="password" type="string">
+  Hashed password
+</ResponseField>
+
+<ResponseField name="rol" type="object">
+  User's role object containing role information
+</ResponseField>
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Juan Pérez",
+    "email": "juan@example.com",
+    "password": "$2a$10$...",
+    "rol": {
+      "id": 1,
+      "nombre": "ADMIN"
+    }
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Users retrieved successfully
+
+---
+
+### Create User
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/usuarios \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "María García",
+    "email": "maria@example.com",
+    "password": "securePass123",
+    "rolId": 2
+  }'
+```
+</RequestExample>
+
+**POST** `/usuarios`
+
+Creates a new user in the system.
+
+#### Request Body
+
+<ParamField body="nombre" type="string" required>
+  User's full name
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  User's email address (must be unique)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password (will be hashed)
+</ParamField>
+
+<ParamField body="rolId" type="long" required>
+  ID of the role to assign to the user
+</ParamField>
+
+#### Response
+
+Returns the created Usuario object.
+
+<ResponseExample>
+```json
+{
+  "id": 5,
+  "nombre": "María García",
+  "email": "maria@example.com",
+  "password": "$2a$10$...",
+  "rol": {
+    "id": 2,
+    "nombre": "DRIVER"
+  }
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `201 Created` - User created successfully
+- `400 Bad Request` - Invalid input data
+
+---
+
+### Get User by ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/usuarios/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/usuarios/{id}`
+
+Retrieves a specific user by their ID.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  User ID
+</ParamField>
+
+#### Response
+
+Returns a Usuario object.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombre": "Juan Pérez",
+  "email": "juan@example.com",
+  "password": "$2a$10$...",
+  "rol": {
+    "id": 1,
+    "nombre": "ADMIN"
+  }
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - User found
+- `404 Not Found` - User not found
+
+---
+
+### Update User
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.fluxora.com/usuarios/1 \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Juan Carlos Pérez",
+    "email": "juanc@example.com",
+    "password": "newPassword456",
+    "rolId": 1
+  }'
+```
+</RequestExample>
+
+**PUT** `/usuarios/{id}`
+
+Updates an existing user's information.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  User ID to update
+</ParamField>
+
+#### Request Body
+
+<ParamField body="nombre" type="string">
+  Updated user name
+</ParamField>
+
+<ParamField body="email" type="string">
+  Updated email address
+</ParamField>
+
+<ParamField body="password" type="string">
+  Updated password
+</ParamField>
+
+<ParamField body="rolId" type="long">
+  Updated role ID
+</ParamField>
+
+#### Response
+
+Returns the updated Usuario object.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombre": "Juan Carlos Pérez",
+  "email": "juanc@example.com",
+  "password": "$2a$10$...",
+  "rol": {
+    "id": 1,
+    "nombre": "ADMIN"
+  }
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - User updated successfully
+- `400 Bad Request` - Invalid input data
+- `404 Not Found` - User not found
+
+---
+
+### Delete User
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/usuarios/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/usuarios/{id}`
+
+Deletes a user from the system.
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  User ID to delete
+</ParamField>
+
+#### Response
+
+Returns the deleted Usuario object.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombre": "Juan Pérez",
+  "email": "juan@example.com",
+  "password": "$2a$10$...",
+  "rol": {
+    "id": 1,
+    "nombre": "ADMIN"
+  }
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - User deleted successfully
+- `404 Not Found` - User not found
+
+---
+
+### Get Users by Role
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.fluxora.com/usuarios?rol=DRIVER" \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/usuarios?rol={rol}`
+
+Retrieves all users with a specific role.
+
+#### Query Parameters
+
+<ParamField query="rol" type="string" required>
+  Role name to filter by (e.g., ADMIN, DRIVER, PRODUCER)
+</ParamField>
+
+#### Response
+
+Returns an array of Usuario objects matching the specified role.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 2,
+    "nombre": "Carlos Driver",
+    "email": "carlos@example.com",
+    "password": "$2a$10$...",
+    "rol": {
+      "id": 2,
+      "nombre": "DRIVER"
+    }
+  },
+  {
+    "id": 3,
+    "nombre": "Ana Driver",
+    "email": "ana@example.com",
+    "password": "$2a$10$...",
+    "rol": {
+      "id": 2,
+      "nombre": "DRIVER"
+    }
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Users retrieved successfully
+- `400 Bad Request` - Invalid role name

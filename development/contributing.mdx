@@ -1,0 +1,313 @@
+---
+title: 'Contributing to Fluxora'
+description: 'Guidelines for contributing to the Fluxora microservices platform'
+icon: 'users'
+---
+
+## Welcome Contributors
+
+Thank you for your interest in contributing to Fluxora! This guide will help you get started with the development process and ensure your contributions align with project standards.
+
+## Development Environment Setup
+
+### Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<Steps>
+  <Step title="Java Development Kit">
+    Install JDK 21 or later
+    ```bash
+    java -version
+    # Should output Java 21 or higher
+    ```
+  </Step>
+  
+  <Step title="Maven">
+    Install Maven for building Java microservices
+    ```bash
+    mvn -version
+    ```
+  </Step>
+  
+  <Step title="Node.js & npm">
+    Install Node.js 20+ for the frontend application
+    ```bash
+    node -v
+    npm -v
+    ```
+  </Step>
+  
+  <Step title="Docker & Docker Compose">
+    Install Docker for running databases and service orchestration
+    ```bash
+    docker --version
+    docker-compose --version
+    ```
+  </Step>
+</Steps>
+
+### Local Setup
+
+<CodeGroup>
+```bash Clone Repository
+git clone https://github.com/FelidevX/Fluxora.git
+cd Fluxora
+```
+
+```bash Start Infrastructure
+# Start PostgreSQL, Eureka, and Gateway
+docker-compose up -d
+```
+
+```bash Run Microservices
+# Navigate to each microservice and run
+cd Microservicios/microservice-usuario
+mvn spring-boot:run
+
+# Repeat for other services:
+# - microservice-inventario
+# - microservice-cliente
+# - microservice-entrega
+```
+
+```bash Run Frontend
+cd frontend-fluxora
+npm install
+npm run dev
+```
+</CodeGroup>
+
+<Info>
+  The frontend will be available at `http://localhost:3000` and the API Gateway at `http://localhost:8080`
+</Info>
+
+## Branch Naming Conventions
+
+Follow these naming patterns for your branches:
+
+<AccordionGroup>
+  <Accordion title="Feature Branches" icon="sparkles">
+    For new features:
+    ```
+    feature/feature-name
+    feature/pruebasUnitarias
+    ```
+  </Accordion>
+  
+  <Accordion title="Fix Branches" icon="wrench">
+    For bug fixes:
+    ```
+    fix/bug-description
+    fix/optimization
+    fix/detalles+optimization
+    ```
+  </Accordion>
+  
+  <Accordion title="Other Branch Types" icon="code-branch">
+    - `refactor/description` - Code refactoring
+    - `docs/description` - Documentation updates
+    - `test/description` - Test additions or modifications
+    - `chore/description` - Maintenance tasks
+  </Accordion>
+</AccordionGroup>
+
+## Commit Message Guidelines
+
+Write clear, descriptive commit messages that explain the "why" behind changes:
+
+### Good Examples
+
+<CardGroup cols={2}>
+  <Card title="Feature Commit" icon="plus">
+    ```
+    Verify if a route exists with the given name - optimized
+    ```
+  </Card>
+  
+  <Card title="Fix Commit" icon="bug">
+    ```
+    Fix problema n + 1 en obtenerRutasProgramadas
+    ```
+  </Card>
+  
+  <Card title="Refactor Commit" icon="rotate">
+    ```
+    Refactor logging to SLF4J
+    ```
+  </Card>
+  
+  <Card title="Optimization" icon="gauge">
+    ```
+    PlanProducción optimization
+    ```
+  </Card>
+</CardGroup>
+
+### Commit Message Format
+
+```
+<type>: <description>
+
+[optional body]
+```
+
+**Types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `refactor` - Code refactoring
+- `test` - Adding or updating tests
+- `docs` - Documentation changes
+- `chore` - Maintenance tasks
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Create Feature Branch">
+    Create a new branch from `main`:
+    ```bash
+    git checkout main
+    git pull origin main
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+  
+  <Step title="Make Your Changes">
+    Implement your changes following the [code style guidelines](/development/code-style)
+  </Step>
+  
+  <Step title="Write Tests">
+    Add unit tests for your changes. See [testing guidelines](/development/testing)
+    ```bash
+    mvn test
+    ```
+  </Step>
+  
+  <Step title="Commit Your Changes">
+    ```bash
+    git add .
+    git commit -m "feat: add new feature description"
+    ```
+  </Step>
+  
+  <Step title="Push to GitHub">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+  
+  <Step title="Create Pull Request">
+    Open a PR on GitHub with:
+    - Clear title describing the change
+    - Description of what was changed and why
+    - Link to any related issues
+    - Screenshots (if UI changes)
+  </Step>
+</Steps>
+
+## Code Review Guidelines
+
+### For Contributors
+
+<CardGroup cols={2}>
+  <Card title="Before Requesting Review" icon="clipboard-check">
+    - All tests pass locally
+    - Code follows style guidelines
+    - No commented-out code
+    - Documentation is updated
+  </Card>
+  
+  <Card title="During Review" icon="comments">
+    - Respond to feedback promptly
+    - Be open to suggestions
+    - Ask questions if unclear
+    - Update PR based on feedback
+  </Card>
+</CardGroup>
+
+### For Reviewers
+
+<Tabs>
+  <Tab title="What to Check">
+    - Code follows project conventions
+    - Tests are comprehensive
+    - No security vulnerabilities
+    - Performance considerations
+    - Documentation is clear
+  </Tab>
+  
+  <Tab title="Review Tone">
+    - Be constructive and specific
+    - Explain the "why" behind suggestions
+    - Acknowledge good practices
+    - Suggest alternatives, don't just criticize
+  </Tab>
+</Tabs>
+
+## Getting Help
+
+<CardGroup cols={3}>
+  <Card title="Issues" icon="circle-exclamation">
+    Report bugs or request features on [GitHub Issues](https://github.com/FelidevX/Fluxora/issues)
+  </Card>
+  
+  <Card title="Discussions" icon="messages">
+    Ask questions in GitHub Discussions
+  </Card>
+  
+  <Card title="Documentation" icon="book">
+    Check existing docs first for answers
+  </Card>
+</CardGroup>
+
+## Project Structure
+
+```
+Fluxora/
+├── Microservicios/
+│   ├── microservice-usuario/      # User authentication & management
+│   ├── microservice-inventario/   # Product & inventory management
+│   ├── microservice-cliente/      # Customer management
+│   ├── microservice-entrega/      # Delivery & route management
+│   ├── microservice-gateway/      # API Gateway
+│   └── microservice-eureka/       # Service discovery
+├── frontend-fluxora/              # Next.js frontend
+├── docker-compose.yml             # Infrastructure setup
+└── render.yaml                    # Deployment configuration
+```
+
+<Note>
+  Each microservice follows a standard Spring Boot structure with controllers, services, repositories, and entities.
+</Note>
+
+## What to Contribute
+
+<CardGroup cols={2}>
+  <Card title="Bug Fixes" icon="bug">
+    Fix reported issues or bugs you discover
+  </Card>
+  
+  <Card title="New Features" icon="sparkles">
+    Implement features from the roadmap or propose new ones
+  </Card>
+  
+  <Card title="Tests" icon="flask">
+    Improve test coverage or add missing tests
+  </Card>
+  
+  <Card title="Documentation" icon="file-lines">
+    Enhance docs, add examples, or fix typos
+  </Card>
+  
+  <Card title="Performance" icon="gauge-high">
+    Optimize slow queries or improve efficiency
+  </Card>
+  
+  <Card title="Refactoring" icon="code">
+    Improve code quality and maintainability
+  </Card>
+</CardGroup>
+
+## License
+
+By contributing to Fluxora, you agree that your contributions will be licensed under the project's license.

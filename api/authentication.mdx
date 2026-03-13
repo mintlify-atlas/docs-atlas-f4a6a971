@@ -1,0 +1,436 @@
+---
+title: Authentication
+description: JWT-based authentication system for Fluxora API - login, token management, and authorization
+---
+
+## Overview
+
+Fluxora uses **JWT (JSON Web Token)** authentication to secure API endpoints. The authentication system is managed by the Usuario Service and validated across all microservices.
+
+<Note>
+All authentication requests are routed through the API Gateway at `http://localhost:8080/api/usuarios`
+</Note>
+
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Gateway
+    participant UsuarioService
+    participant OtherServices
+    
+    Client->>Gateway: POST /api/usuarios/auth/login
+    Gateway->>UsuarioService: Forward request
+    UsuarioService->>UsuarioService: Validate credentials
+    UsuarioService->>UsuarioService: Generate JWT token
+    UsuarioService->>Gateway: Return token
+    Gateway->>Client: 200 OK + token
+    
+    Client->>Gateway: GET /api/inventario/productos
+    Note over Client,Gateway: Authorization: Bearer <token>
+    Gateway->>OtherServices: Forward with token
+    OtherServices->>OtherServices: Validate JWT
+    OtherServices->>Gateway: Return data
+    Gateway->>Client: 200 OK + data
+```
+
+## Login Endpoint
+
+### POST /api/usuarios/auth/login
+
+Authenticate a user and receive a JWT access token.
+
+**Request:**
+
+```bash
+curl -X POST http://localhost:8080/api/usuarios/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@fluxora.uno",
+    "password": "securePassword123"
+  }'
+```
+
+**Request Body:**
+
+<ParamField body="email" type="string" required>
+  User's email address (used as username)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  User's password (will be validated against bcrypt hash)
+</ParamField>
+
+**Success Response (200 OK):**
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMiLCJlbWFpbCI6ImFkbWluQGZsdXhvcmEudW5vIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzEwMzM2MDAwLCJleHAiOjE3MTAzMzk2MDB9.signature",
+  "tokenType": "Bearer"
+}
+```
+
+<ResponseField name="accessToken" type="string" required>
+  JWT access token to be used for subsequent API requests
+</ResponseField>
+
+<ResponseField name="tokenType" type="string" required>
+  Token type - always "Bearer" for JWT authentication
+</ResponseField>
+
+**Error Response (401 Unauthorized):**
+
+```json
+{
+  "timestamp": "2026-03-13T10:30:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Credenciales inválidas",
+  "path": "/api/usuarios/auth/login"
+}
+```
+
+### Implementation Reference
+
+The login endpoint is implemented in:
+
+- Controller: `AuthController.java:20-23`
+- Service: `AuthService.java:21-31`
+- DTOs: `LoginRequest.java`, `LoginResponse.java`
+
+## JWT Token Structure
+
+### Token Claims
+
+Fluxora JWT tokens contain the following claims:
+
+```json
+{
+  "sub": "123",
+  "email": "admin@fluxora.uno",
+  "role": "ADMIN",
+  "iat": 1710336000,
+  "exp": 1710339600
+}
+```
+
+<ResponseField name="sub" type="string">
+  Subject - User ID as string
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  User's role (ADMIN, DRIVER, etc.)
+</ResponseField>
+
+<ResponseField name="iat" type="number">
+  Issued At timestamp (Unix epoch)
+</ResponseField>
+
+<ResponseField name="exp" type="number">
+  Expiration timestamp (Unix epoch)
+</ResponseField>
+
+### Token Generation
+
+Tokens are generated using HMAC-SHA256 signing:
+
+```java
+// From JwtService.java:24-32
+public String generateToken(Long userId, String email, String role) {
+    Instant now = Instant.now();
+    return Jwts.builder()
+        .setSubject(String.valueOf(userId))
+        .setIssuedAt(Date.from(now))
+        .setExpiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
+        .claim("email", email)
+        .claim("role", role)
+        .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret)))
+        .compact();
+}
+```
+
+## Using JWT Tokens
+
+### Authorization Header Format
+
+Include the JWT token in the `Authorization` header for all protected endpoints:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Example Request:**
+
+```bash
+curl -X GET http://localhost:8080/api/inventario/productos \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json"
+```
+
+### JavaScript Example
+
+```javascript
+const token = localStorage.getItem('accessToken');
+
+const response = await fetch('http://localhost:8080/api/inventario/productos', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+if (response.ok) {
+  const productos = await response.json();
+  console.log(productos);
+}
+```
+
+## Token Validation
+
+All microservices validate JWT tokens using the `JwtAuthenticationFilter`:
+
+```java
+// From JwtAuthenticationFilter.java:34-51
+String header = request.getHeader("Authorization");
+if (header == null || !header.startsWith("Bearer ")) {
+    chain.doFilter(request, response);
+    return;
+}
+
+String token = header.substring(7).trim();
+
+try {
+    var claims = jwtService.parse(token);
+    String email = claims.get("email", String.class);
+    String role = claims.get("role", String.class);
+    
+    var auth = new UsernamePasswordAuthenticationToken(
+        email, 
+        null,
+        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+    );
+    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+    SecurityContextHolder.getContext().setAuthentication(auth);
+    chain.doFilter(request, response);
+}
+```
+
+## Token Expiration
+
+### Expiration Time
+
+JWT tokens expire after a configurable duration (default: 60 minutes):
+
+```properties
+security.jwt.expiration-minutes=${JWT_EXP}
+```
+
+### Handling Expired Tokens
+
+When a token expires, the API returns a 401 Unauthorized response:
+
+```json
+{
+  "error": "Token expirado"
+}
+```
+
+**Client-Side Handling:**
+
+```javascript
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  let token = localStorage.getItem('accessToken');
+  
+  options.headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+  
+  const response = await fetch(url, options);
+  
+  if (response.status === 401) {
+    const error = await response.json();
+    
+    if (error.error === 'Token expirado') {
+      // Redirect to login or refresh token
+      window.location.href = '/login';
+    }
+  }
+  
+  return response;
+};
+```
+
+<Warning>
+Fluxora does not currently implement refresh tokens. Users must re-authenticate when their token expires.
+</Warning>
+
+## Role-Based Authorization
+
+Fluxora implements role-based access control (RBAC) using Spring Security's `@PreAuthorize` annotation.
+
+### Available Roles
+
+- **ADMIN** - Full system access
+- **DRIVER** - Delivery management and client interactions
+- **USER** - Basic user access
+
+### Authorization Examples
+
+**Admin-Only Endpoint:**
+
+```java
+// From ClienteController.java:28-32
+@PreAuthorize("hasRole('ADMIN')")
+@GetMapping()
+public List<ClienteDTO> getAllClientes() {
+    return clienteService.getAllClientesConInfoRuta();
+}
+```
+
+**Multiple Roles Allowed:**
+
+```java
+// From EntregaController.java:38-42
+@PreAuthorize("hasAnyRole('ADMIN', 'DRIVER')")
+@GetMapping("/rutas-activas")
+public List<Map<String, Object>> getRutasActivas() {
+    return entregaService.getRutasActivas();
+}
+```
+
+### Authorization Error Response
+
+When a user lacks sufficient permissions, the API returns 403 Forbidden:
+
+```json
+{
+  "timestamp": "2026-03-13T10:30:00",
+  "status": 403,
+  "error": "Forbidden",
+  "message": "Access Denied",
+  "path": "/api/clientes"
+}
+```
+
+## Authentication Errors
+
+### Invalid Credentials
+
+**Status Code:** 401 Unauthorized
+
+```json
+{
+  "timestamp": "2026-03-13T10:30:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Credenciales inválidas",
+  "path": "/api/usuarios/auth/login"
+}
+```
+
+### Invalid Token
+
+**Status Code:** 401 Unauthorized
+
+```json
+{
+  "error": "Token inválido"
+}
+```
+
+### Expired Token
+
+**Status Code:** 401 Unauthorized
+
+```json
+{
+  "error": "Token expirado"
+}
+```
+
+### Missing Token
+
+When no Authorization header is provided, the request continues without authentication. Protected endpoints will return 401 or 403 based on the security configuration.
+
+## Security Configuration
+
+### JWT Secret
+
+The JWT signing key is configured via environment variable:
+
+```properties
+security.jwt.secret=${JWT_SECRET}
+```
+
+<Warning>
+The JWT secret must be a Base64-encoded string and should be kept secure. Never commit secrets to version control.
+</Warning>
+
+### Token Storage Recommendations
+
+**Client-Side Storage Options:**
+
+1. **HttpOnly Cookies** (Most Secure)
+   - Protected from XSS attacks
+   - Automatically sent with requests
+   - Requires CORS configuration
+
+2. **LocalStorage** (Simple but less secure)
+   - Vulnerable to XSS attacks
+   - Easy to implement
+   - Requires manual header management
+
+3. **SessionStorage** (Session-based)
+   - Cleared when tab closes
+   - Vulnerable to XSS attacks
+   - Good for temporary sessions
+
+## Testing Authentication
+
+### Using cURL
+
+```bash
+# 1. Login and get token
+TOKEN=$(curl -s -X POST http://localhost:8080/api/usuarios/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@fluxora.uno","password":"password"}' \
+  | jq -r '.accessToken')
+
+# 2. Use token to access protected endpoint
+curl -X GET http://localhost:8080/api/inventario/productos \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+### Using Postman
+
+1. Create a login request to `/api/usuarios/auth/login`
+2. Copy the `accessToken` from the response
+3. In other requests, go to **Authorization** tab
+4. Select **Bearer Token** type
+5. Paste the token
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Learn about API structure and conventions
+  </Card>
+  <Card title="User Management" icon="users" href="/api/endpoints/usuarios">
+    Create and manage user accounts
+  </Card>
+  <Card title="Gateway Configuration" icon="network-wired" href="/api/gateway">
+    Understand gateway routing and CORS
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/api/overview#error-responses">
+    Handle API errors effectively
+  </Card>
+</CardGroup>

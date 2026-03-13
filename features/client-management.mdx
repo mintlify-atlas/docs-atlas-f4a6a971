@@ -1,0 +1,300 @@
+---
+title: 'Client Management'
+description: 'Manage customer profiles, contact information, and route assignments'
+icon: 'building'
+---
+
+## Overview
+
+The Client Management module allows you to maintain detailed customer profiles, track contact information, and associate clients with delivery routes. This centralized system ensures accurate deliveries and personalized pricing for each customer.
+
+## Client Profile Information
+
+Each client profile contains the following fields:
+
+<CardGroup cols={2}>
+  <Card title="Basic Information" icon="address-card">
+    - **Business Name** (nombreNegocio): The client's business name
+    - **Contact Person** (nombre): Primary contact name
+    - **Phone** (contacto): Contact phone number
+    - **Email**: Email address for communications
+  </Card>
+  
+  <Card title="Location & Delivery" icon="map-marker">
+    - **Address** (direccion): Street address for deliveries
+    - **Latitude** (latitud): GPS coordinates for routing
+    - **Longitude** (longitud): GPS coordinates for routing
+    - **Route** (ruta): Assigned delivery route name
+  </Card>
+</CardGroup>
+
+### Personalized Pricing
+
+Fluxora supports custom pricing per client for different product types:
+
+- **Precio Corriente**: Price per kg for regular bakery products
+- **Precio Especial**: Price per kg for premium bakery products
+
+<Note>
+  Custom pricing allows you to offer competitive rates based on purchase volume, loyalty, or special agreements with each client.
+</Note>
+
+## Creating a New Client
+
+<Steps>
+  <Step title="Access Client Management">
+    Navigate to **Dashboard > Clients** from the main menu
+  </Step>
+  
+  <Step title="Click New Client">
+    Click the **New Client** button in the top right corner
+  </Step>
+  
+  <Step title="Enter Business Information">
+    Fill in the required fields:
+    - Business name (e.g., "Café Central")
+    - Contact person name
+    - Phone number
+    - Email address (optional)
+  </Step>
+  
+  <Step title="Add Delivery Address">
+    Enter the complete street address where deliveries should be made
+  </Step>
+  
+  <Step title="Set GPS Coordinates">
+    Enter latitude and longitude coordinates:
+    - Use Google Maps to find exact coordinates
+    - These are used for route optimization
+    - Format: Latitude (e.g., -33.4489) and Longitude (e.g., -70.6693)
+  </Step>
+  
+  <Step title="Configure Pricing">
+    Set custom prices for this client:
+    - **Precio Corriente**: Default is 1200 (CLP per kg)
+    - **Precio Especial**: Default is 1500 (CLP per kg)
+  </Step>
+  
+  <Step title="Save Client">
+    Click **Register Client** to create the customer profile
+  </Step>
+</Steps>
+
+## Managing Existing Clients
+
+### Viewing Clients
+
+The Clients dashboard displays all customers in a searchable table:
+
+| Column | Description |
+|--------|-------------|
+| **Client** | Contact person name |
+| **Contact** | Phone number |
+| **Address** | Delivery address (truncated if long) |
+| **Route** | Assigned delivery route (displayed as badge) |
+| **Precio Corriente** | Custom price for regular products |
+| **Precio Especial** | Custom price for premium products |
+
+### Searching for Clients
+
+Use the search bar to quickly find clients by:
+- Client name
+- Phone number
+- Address
+
+The table updates in real-time as you type.
+
+### Editing Client Information
+
+<Steps>
+  <Step title="Locate Client">
+    Find the client in the table or use the search function
+  </Step>
+  
+  <Step title="Click Edit">
+    Click the **Edit** button (pencil icon) on the client's row
+  </Step>
+  
+  <Step title="Update Information">
+    Modify any field as needed:
+    - Business details
+    - Contact information
+    - Delivery address
+    - GPS coordinates
+    - Pricing
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **Save Changes** to update the client profile
+  </Step>
+</Steps>
+
+### Deleting Clients
+
+<Warning>
+  Deleting a client will remove them from all delivery routes. This action cannot be undone.
+</Warning>
+
+1. Click the **Delete** button (trash icon) next to the client
+2. Review the confirmation dialog
+3. Click **Confirm** to permanently delete the client
+
+## Route Assignment
+
+### Associating Clients with Routes
+
+Clients are automatically associated with delivery routes when:
+
+1. **Manual Assignment**: An admin adds the client to a specific route in the Routes module
+2. **Route Optimization**: The system suggests optimal routes based on GPS coordinates
+
+The **Route** column in the clients table displays the current route assignment as a blue badge.
+
+### Route-Client Relationship
+
+Each client can only be assigned to one delivery route at a time. The route assignment determines:
+
+- Which driver delivers to this client
+- The order of deliveries during the route
+- Daily delivery schedules
+
+<Note>
+  To change a client's route, navigate to **Dashboard > Deliveries > Routes** and update the route configuration.
+</Note>
+
+## GPS Coordinates & Mapping
+
+### Why GPS Coordinates Matter
+
+Accurate GPS coordinates enable:
+
+- **Route Optimization**: System calculates the most efficient delivery sequence
+- **Distance Calculation**: Accurate travel distances and time estimates
+- **Driver Navigation**: Helps drivers find client locations easily
+
+### How to Find GPS Coordinates
+
+<Steps>
+  <Step title="Open Google Maps">
+    Go to [Google Maps](https://maps.google.com)
+  </Step>
+  
+  <Step title="Search for Address">
+    Enter the client's delivery address in the search bar
+  </Step>
+  
+  <Step title="Drop a Pin">
+    Right-click on the exact location and select "What's here?"
+  </Step>
+  
+  <Step title="Copy Coordinates">
+    Click on the coordinates at the bottom of the screen to copy them
+    - Format: -33.4489, -70.6693
+    - First number is latitude, second is longitude
+  </Step>
+  
+  <Step title="Enter in Fluxora">
+    Paste the coordinates into the latitude and longitude fields
+  </Step>
+</Steps>
+
+## Custom Pricing Strategy
+
+### Setting Competitive Prices
+
+Fluxora's client-specific pricing allows you to:
+
+<CardGroup cols={2}>
+  <Card title="Volume Discounts" icon="scale-balanced">
+    Offer lower prices to clients who purchase large quantities regularly
+  </Card>
+  
+  <Card title="Loyalty Pricing" icon="handshake">
+    Reward long-term customers with special rates
+  </Card>
+  
+  <Card title="Market Competition" icon="chart-line">
+    Adjust prices based on local competition and market conditions
+  </Card>
+  
+  <Card title="Premium Segments" icon="crown">
+    Charge premium prices for specialized or rush deliveries
+  </Card>
+</CardGroup>
+
+### Price Types Explained
+
+- **Corriente (Regular)**: Standard bakery products like bread, rolls, and everyday items
+- **Especial (Premium)**: Specialty items like pastries, cakes, and premium baked goods
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Adding a new café as a client">
+    1. Click **New Client**
+    2. Enter café name and contact person
+    3. Add phone number and email
+    4. Enter the café's street address
+    5. Use Google Maps to get GPS coordinates
+    6. Set pricing (e.g., 1100 for regular, 1400 for premium)
+    7. Save the client
+    8. Assign to an appropriate delivery route
+  </Accordion>
+
+  <Accordion title="Updating client pricing after negotiation">
+    1. Find the client in the table
+    2. Click **Edit**
+    3. Update **Precio Corriente** and/or **Precio Especial**
+    4. Save changes
+    5. New pricing applies to all future deliveries
+  </Accordion>
+
+  <Accordion title="Moving a client to a different route">
+    1. Go to **Dashboard > Deliveries > Routes**
+    2. Find the current route and remove the client
+    3. Add the client to the new route
+    4. Reorder clients if needed for optimal delivery sequence
+    5. Save the route configuration
+  </Accordion>
+
+  <Accordion title="Handling a temporarily closed client">
+    Option 1: Leave the client in the system but skip them during delivery planning
+    
+    Option 2: Remove them from the delivery route temporarily and re-add when they reopen
+    
+    Option 3: Delete the client (can be recreated later with the same information)
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Verify Addresses" icon="location-check">
+    Always verify delivery addresses with clients before first delivery to avoid delays
+  </Card>
+  
+  <Card title="Keep Contacts Updated" icon="address-book">
+    Regularly update phone numbers and contact persons as businesses change staff
+  </Card>
+  
+  <Card title="Document Special Instructions" icon="note-sticky">
+    Use the comments field for delivery notes (e.g., "Deliver to back entrance")
+  </Card>
+  
+  <Card title="Review Pricing Quarterly" icon="calendar">
+    Periodically review and adjust client pricing based on costs and market conditions
+  </Card>
+</CardGroup>
+
+## Tips & Tricks
+
+- **Bulk Import**: For adding many clients at once, prepare a spreadsheet with all information first
+- **Coordinate Precision**: Use at least 4 decimal places for GPS coordinates for accurate routing
+- **Route Balancing**: Distribute clients evenly across routes to balance driver workloads
+- **Address Abbreviations**: Be consistent with address formatting (e.g., always use "St." or always spell out "Street")
+
+## Related Features
+
+- [Delivery Management](/features/delivery-management) - Plan and track deliveries to clients
+- [Reporting](/features/reporting) - Generate client purchase reports and analytics
+- [User Management](/features/user-management) - Manage driver accounts for deliveries

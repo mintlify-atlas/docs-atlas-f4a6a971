@@ -1,0 +1,457 @@
+---
+title: "Architecture Overview"
+description: "Understanding Fluxora's microservices architecture and technology stack"
+---
+
+Fluxora is built using a modern microservices architecture that provides scalability, maintainability, and fault isolation. This guide explains the system's architectural components and how they work together.
+
+## System Architecture
+
+Fluxora consists of the following core components:
+
+- **Service Discovery** (Eureka Server): Enables dynamic service registration and discovery
+- **API Gateway**: Single entry point for all client requests with routing and CORS handling
+- **Business Microservices**: Four independent services managing different domains
+- **Frontend Application**: Next.js-based web interface
+- **Database Layer**: PostgreSQL instances with one database per service
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Client Layer                            │
+│                    Next.js Frontend (3000)                      │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      API Gateway (8080)                         │
+│              Spring Cloud Gateway + CORS                        │
+└────────┬────────┬────────┬────────┬───────────────────────┬─────┘
+         │        │        │        │                       │
+         ▼        ▼        ▼        ▼                       ▼
+    ┌────────┬────────┬────────┬────────┐         ┌──────────────┐
+    │Usuario │Cliente │Invent. │Entrega │         │   Eureka     │
+    │Service │Service │Service │Service │◄────────┤   Server     │
+    │(8081)  │(8083)  │(8082)  │(8084)  │         │   (8761)     │
+    └───┬────┴───┬────┴───┬────┴───┬────┘         └──────────────┘
+        │        │        │        │
+        ▼        ▼        ▼        ▼
+    ┌────────┬────────┬────────┬────────┐
+    │  PG    │  PG    │  PG    │  PG    │
+    │(5434)  │(5433)  │(5436)  │(5435)  │
+    └────────┴────────┴────────┴────────┘
+```
+
+## Core Components
+
+### Eureka Server (Service Discovery)
+
+<Card title="Eureka Server" icon="compass">
+  **Port**: 8761  
+  **Purpose**: Service registration and discovery  
+  **Location**: `Microservicios/microservice-eureka`
+</Card>
+
+The Eureka Server provides service discovery capabilities, allowing microservices to find and communicate with each other without hard-coded hostnames or ports.
+
+**Key Configuration** (microservice-eureka/src/main/resources/application.properties:1-12):
+
+```properties
+spring.application.name=microservice-eureka
+server.port=8761
+eureka.instance.hostname=eureka-server
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+```
+
+All microservices register themselves with Eureka on startup, enabling dynamic service discovery.
+
+### API Gateway
+
+<Card title="API Gateway" icon="door-open">
+  **Port**: 8080  
+  **Purpose**: Single entry point, routing, CORS handling  
+  **Location**: `Microservicios/microservice-gateway`
+</Card>
+
+The API Gateway serves as the single entry point for all client requests. It routes requests to appropriate microservices and handles cross-cutting concerns like CORS.
+
+**Route Configuration** (microservice-gateway/src/main/resources/application.properties:10-32):
+
+```properties
+# Usuario Service Route
+spring.cloud.gateway.server.webflux.routes[0].uri=http://usuario-service:8081
+spring.cloud.gateway.server.webflux.routes[0].predicates[0]=Path=/api/usuarios/**
+
+# Inventario Service Route
+spring.cloud.gateway.server.webflux.routes[1].uri=http://inventario-service:8082
+spring.cloud.gateway.server.webflux.routes[1].predicates[0]=Path=/api/inventario/**
+
+# Cliente Service Route
+spring.cloud.gateway.server.webflux.routes[2].uri=http://cliente-service:8083
+spring.cloud.gateway.server.webflux.routes[2].predicates[0]=Path=/api/clientes/**
+
+# Entrega Service Route
+spring.cloud.gateway.server.webflux.routes[3].uri=http://entrega-service:8084
+spring.cloud.gateway.server.webflux.routes[3].predicates[0]=Path=/api/entregas/**
+```
+
+**CORS Configuration** (microservice-gateway/src/main/resources/application.properties:44-48):
+
+```properties
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-origins=http://localhost:3000,https://fluxora.uno
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-methods=GET,POST,PUT,PATCH,DELETE,OPTIONS
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-headers=Authorization,Content-Type,Accept
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allow-credentials=true
+```
+
+## Business Microservices
+
+### Usuario Service (User Management)
+
+<Card title="Usuario Service" icon="user">
+  **Port**: 8081  
+  **Context Path**: `/api/usuarios`  
+  **Database**: `usuario_db` (port 5434)  
+  **Location**: `Microservicios/microservice-usuario`
+</Card>
+
+Handles user authentication, authorization, and user management.
+
+**Key Features**:
+- JWT-based authentication (AuthController.java:20)
+- User CRUD operations
+- Role management
+- Spring Security integration
+
+**Authentication Endpoint**:
+```java
+@PostMapping("/auth/login")
+public ResponseEntity<LoginResponse> login(@Validated @RequestBody LoginRequest body) {
+    return ResponseEntity.ok(authService.login(body));
+}
+```
+
+**Technology Stack**:
+- Spring Boot 3.5.4
+- Spring Security
+- JWT (jjwt 0.11.5)
+- PostgreSQL
+- Lombok
+
+### Cliente Service (Client Management)
+
+<Card title="Cliente Service" icon="users">
+  **Port**: 8083  
+  **Context Path**: `/api/clientes`  
+  **Database**: `cliente_db` (port 5433)  
+  **Location**: `Microservicios/microservice-cliente`
+</Card>
+
+Manages customer information and integrates with the delivery service.
+
+**Key Features**:
+- Client CRUD operations
+- Integration with Entrega service via Feign
+- MapStruct for DTO mapping
+- JWT authentication
+
+**Feign Client Integration** (microservice-cliente/src/main/java/com/microservice/cliente/client/EntregaServiceClient.java:15-28):
+
+```java
+@FeignClient(name = "microservice-entrega", configuration = FeignClientInterceptor.class)
+public interface EntregaServiceClient {
+    @DeleteMapping("/api/entregas/entrega/cliente/{idCliente}/relaciones")
+    ResponseEntity<String> eliminarRelacionesCliente(@PathVariable("idCliente") Long idCliente);
+    
+    @GetMapping("/api/entregas/rutas/cliente/{idCliente}/ruta")
+    ResponseEntity<Map<String, Object>> getNombreRutaPorCliente(@PathVariable("idCliente") Long idCliente);
+}
+```
+
+**Technology Stack**:
+- Spring Boot 3.5.4
+- Spring Cloud OpenFeign
+- MapStruct 1.6.3
+- PostgreSQL
+- JaCoCo for code coverage
+
+### Inventario Service (Inventory Management)
+
+<Card title="Inventario Service" icon="box">
+  **Port**: 8082  
+  **Context Path**: `/api/inventario`  
+  **Database**: `inventario_db` (port 5436)  
+  **Location**: `Microservicios/microservice-inventario`
+</Card>
+
+Handles inventory, raw materials, and production inputs.
+
+**Key Features**:
+- Raw material purchase management (CompraMateriaPrimaController)
+- Production input tracking (InsumoProduccionController)
+- Batch/lot management (LoteController)
+- Stock control
+
+**Technology Stack**:
+- Spring Boot 3.5.4
+- Spring Data JPA
+- PostgreSQL
+- Eureka Client
+
+### Entrega Service (Delivery Management)
+
+<Card title="Entrega Service" icon="truck">
+  **Port**: 8084  
+  **Context Path**: `/api/entregas`  
+  **Database**: `entrega_db` (port 5435)  
+  **Location**: `Microservicios/microservice-entrega`
+</Card>
+
+Manages delivery routes and delivery tracking.
+
+**Key Features**:
+- Delivery management (EntregaController)
+- Route planning and optimization (RutaController)
+- Client-delivery associations
+- Route querying by client
+
+**Technology Stack**:
+- Spring Boot 3.5.4
+- Spring Data JPA
+- PostgreSQL
+- Eureka Client
+
+## Frontend Application
+
+<Card title="Frontend" icon="browser">
+  **Port**: 3000  
+  **Framework**: Next.js 15.4.5  
+  **Location**: `frontend-fluxora`
+</Card>
+
+A modern React-based web application built with Next.js.
+
+**Key Technologies** (frontend-fluxora/package.json:12-25):
+
+```json
+{
+  "dependencies": {
+    "next": "15.4.5",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "chart.js": "^4.5.0",
+    "react-chartjs-2": "^5.3.0",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0",
+    "jspdf": "^3.0.4",
+    "xlsx": "^0.18.5",
+    "framer-motion": "^12.25.0"
+  }
+}
+```
+
+**Features**:
+- Data visualization with Chart.js
+- Interactive maps with Leaflet
+- PDF export capabilities
+- Excel import/export
+- Smooth animations with Framer Motion
+- TypeScript support
+- Tailwind CSS styling
+
+## Service Communication Patterns
+
+### Service Discovery with Eureka
+
+All microservices register with Eureka on startup and can discover other services dynamically:
+
+```properties
+eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+eureka.client.fetch-registry=true
+eureka.client.register-with-eureka=true
+```
+
+### Feign Client for Inter-Service Communication
+
+Services communicate using Spring Cloud OpenFeign, which integrates with Eureka for service discovery:
+
+```java
+@FeignClient(name = "microservice-entrega", configuration = FeignClientInterceptor.class)
+public interface EntregaServiceClient {
+    // Service methods
+}
+```
+
+The `FeignClientInterceptor` adds JWT tokens to inter-service requests for authentication.
+
+### API Gateway Routing
+
+All external requests flow through the API Gateway, which:
+1. Receives the request from the client
+2. Resolves the target service via Eureka
+3. Routes the request to the appropriate microservice
+4. Returns the response to the client
+
+## Database Architecture
+
+Fluxora uses the **Database per Service** pattern, where each microservice has its own PostgreSQL database:
+
+<CardGroup cols={2}>
+
+<Card title="usuario_db" icon="database">
+  **Port**: 5434  
+  **Service**: Usuario Service  
+  **Schema**: Users, roles, permissions
+</Card>
+
+<Card title="cliente_db" icon="database">
+  **Port**: 5433  
+  **Service**: Cliente Service  
+  **Schema**: Clients, contacts
+</Card>
+
+<Card title="inventario_db" icon="database">
+  **Port**: 5436  
+  **Service**: Inventario Service  
+  **Schema**: Inventory, materials, lots
+</Card>
+
+<Card title="entrega_db" icon="database">
+  **Port**: 5435  
+  **Service**: Entrega Service  
+  **Schema**: Deliveries, routes
+</Card>
+
+</CardGroup>
+
+**Database Configuration** (docker-compose.yml:3-24):
+
+```yaml
+db-cliente:
+  image: postgres:15-alpine
+  environment:
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+    POSTGRES_DB: cliente_db
+    TZ: America/Santiago
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fluxora"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+```
+
+<Note>
+Each database includes health checks to ensure PostgreSQL is ready before dependent services start.
+</Note>
+
+## Technology Stack Summary
+
+### Backend Technologies
+
+| Technology | Version | Purpose |
+|------------|---------|----------|
+| Java | 21 | Programming language |
+| Spring Boot | 3.5.4 | Application framework |
+| Spring Cloud | 2025.0.0 | Microservices framework |
+| Spring Cloud Gateway | 2025.0.0 | API gateway |
+| Netflix Eureka | 2025.0.0 | Service discovery |
+| Spring Cloud OpenFeign | 2025.0.0 | Declarative REST client |
+| Spring Security | 3.5.4 | Authentication & authorization |
+| Spring Data JPA | 3.5.4 | Database access |
+| PostgreSQL | 15-alpine | Relational database |
+| JWT (jjwt) | 0.11.5 | Token-based authentication |
+| MapStruct | 1.6.3 | Object mapping |
+| Lombok | Latest | Boilerplate reduction |
+| JaCoCo | 0.8.11 | Code coverage |
+
+### Frontend Technologies
+
+| Technology | Version | Purpose |
+|------------|---------|----------|
+| Next.js | 15.4.5 | React framework |
+| React | 19.1.0 | UI library |
+| TypeScript | 5.x | Type safety |
+| Tailwind CSS | 4.x | Styling |
+| Chart.js | 4.5.0 | Data visualization |
+| Leaflet | 1.9.4 | Interactive maps |
+| jsPDF | 3.0.4 | PDF generation |
+| XLSX | 0.18.5 | Excel import/export |
+| Framer Motion | 12.25.0 | Animations |
+
+### DevOps & Infrastructure
+
+| Technology | Version | Purpose |
+|------------|---------|----------|
+| Docker | 20.10+ | Containerization |
+| Docker Compose | 2.0+ | Multi-container orchestration |
+| Maven | 3.x | Build tool (via Maven Wrapper) |
+| npm | Latest | Frontend package manager |
+
+## Deployment Architecture
+
+Fluxora supports multiple deployment strategies:
+
+### Local Development (Docker Compose)
+
+Using `docker-compose.yml`, all services run in containers with:
+- Bridge networking for inter-service communication
+- Persistent volumes for database data
+- Health checks for database readiness
+- Timezone configuration (America/Santiago)
+
+### Cloud Deployment (Render)
+
+The `render.yaml` configuration deploys services to Render.com:
+- Managed PostgreSQL database
+- Web services for all microservices
+- Environment-based configuration
+- Automatic SSL/TLS
+- Global CDN
+
+<Tip>
+The architecture is cloud-agnostic and can be deployed to AWS, Azure, GCP, or any container orchestration platform like Kubernetes.
+</Tip>
+
+## Design Principles
+
+### Single Responsibility
+Each microservice handles a specific business domain:
+- **Usuario**: Authentication & user management
+- **Cliente**: Customer management
+- **Inventario**: Inventory & materials
+- **Entrega**: Deliveries & routing
+
+### Loose Coupling
+Services communicate via REST APIs and service discovery, avoiding direct dependencies.
+
+### Database per Service
+Each service owns its data, ensuring data isolation and independent scaling.
+
+### API Gateway Pattern
+A single entry point simplifies client communication and enables centralized cross-cutting concerns.
+
+### Service Discovery
+Dynamic service registration enables elastic scaling and fault tolerance.
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Get Fluxora running locally
+</Card>
+
+<Card title="API Reference" icon="code" href="/api/overview">
+  Explore available endpoints
+</Card>
+
+<Card title="Development Guide" icon="hammer" href="/development">
+  Set up your development environment
+</Card>
+
+<Card title="Deployment Guide" icon="cloud" href="/deployment">
+  Deploy to production
+</Card>
+
+</CardGroup>

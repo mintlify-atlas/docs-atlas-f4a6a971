@@ -1,0 +1,438 @@
+---
+title: 'Configuration'
+description: 'Configure Fluxora microservices with environment variables and application properties'
+icon: 'gear'
+---
+
+## Overview
+
+Fluxora uses environment variables and Spring Boot application properties for configuration. Each microservice requires its own configuration, and this guide covers all essential settings.
+
+## Environment Variables
+
+All microservices load environment variables from `.env` files using Spring's `spring.config.import` property.
+
+### Usuario Service Environment
+
+Create `.env` in `Microservicios/microservice-usuario/`:
+
+```bash
+# Database Configuration
+DB_URL=jdbc:postgresql://localhost:5434/usuario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server Configuration
+SERVER_PORT=8081
+
+# Eureka Discovery
+EUREKA_URL=http://localhost:8761/eureka/
+
+# JWT Configuration
+JWT_SECRET=YourBase64EncodedSecretKeyHere/MustBeLongEnoughForHS256Algorithm==
+JWT_EXP=60
+```
+
+<Warning>
+  **JWT Secret**: The `JWT_SECRET` must be a Base64-encoded string long enough for HMAC-SHA256. Generate a secure secret:
+  
+  ```bash
+  openssl rand -base64 64
+  ```
+</Warning>
+
+### Cliente Service Environment
+
+Create `.env` in `Microservicios/microservice-cliente/`:
+
+```bash
+# Database Configuration
+DB_URL=jdbc:postgresql://localhost:5433/cliente_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server Configuration
+SERVER_PORT=8083
+
+# Eureka Discovery
+EUREKA_URL=http://localhost:8761/eureka/
+
+# JWT Configuration (must match Usuario service)
+JWT_SECRET=YourBase64EncodedSecretKeyHere/MustBeLongEnoughForHS256Algorithm==
+JWT_EXP=60
+```
+
+### Entrega Service Environment
+
+Create `.env` in `Microservicios/microservice-entrega/`:
+
+```bash
+# Database Configuration
+DB_URL=jdbc:postgresql://localhost:5435/entrega_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server Configuration
+SERVER_PORT=8084
+
+# Eureka Discovery
+EUREKA_URL=http://localhost:8761/eureka/
+```
+
+### Inventario Service Environment
+
+Create `.env` in `Microservicios/microservice-inventario/`:
+
+```bash
+# Database Configuration
+DB_URL=jdbc:postgresql://localhost:5436/inventario_db
+DB_USERNAME=fluxora
+DB_PASSWORD=fluxora123
+
+# Server Configuration
+SERVER_PORT=8082
+
+# Eureka Discovery
+EUREKA_URL=http://localhost:8761/eureka/
+
+# JWT Configuration
+JWT_SECRET=YourBase64EncodedSecretKeyHere/MustBeLongEnoughForHS256Algorithm==
+JWT_EXP=60
+```
+
+### Frontend Environment
+
+Create `.env` in `frontend-fluxora/`:
+
+```bash
+# API Gateway URL
+NEXT_PUBLIC_API_URL=http://localhost:8080
+
+# Environment
+NODE_ENV=development
+NEXT_TELEMETRY_DISABLED=1
+```
+
+## Application Properties
+
+### Common Configuration Pattern
+
+All microservices follow this configuration structure in `src/main/resources/application.properties`:
+
+```properties
+# Load environment variables from .env file
+spring.config.import=optional:file:.env[.properties]
+
+# Application Identity
+spring.application.name=microservice-usuario
+server.servlet.context-path=/api/usuarios
+
+# Database Configuration
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA/Hibernate Configuration for PostgreSQL
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.properties.hibernate.format_sql=true
+
+# Server Port
+server.port=${SERVER_PORT}
+
+# Eureka Client Configuration
+eureka.client.service-url.defaultZone=${EUREKA_URL}
+eureka.client.fetch-registry=true
+eureka.client.register-with-eureka=true
+
+# JWT Configuration
+security.jwt.secret=${JWT_SECRET}
+security.jwt.expiration-minutes=${JWT_EXP}
+```
+
+### Gateway Configuration
+
+The API Gateway (`microservice-gateway/src/main/resources/application.properties`) routes requests to microservices:
+
+```properties
+spring.application.name=microservice-gateway
+server.port=8080
+
+# Enable service discovery
+spring.cloud.gateway.server.webflux.discovery.locator.enabled=true
+spring.cloud.gateway.server.webflux.discovery.locator.lower-case-service-id=true
+
+# Reactive web application
+spring.main.web-application-type=reactive
+
+# Route: Usuario Service
+spring.cloud.gateway.server.webflux.routes[0].id=usuarios
+spring.cloud.gateway.server.webflux.routes[0].uri=http://usuario-service:8081
+spring.cloud.gateway.server.webflux.routes[0].predicates[0]=Path=/api/usuarios/**
+spring.cloud.gateway.server.webflux.routes[0].filters[0]=StripPrefix=0
+
+# Route: Inventario Service
+spring.cloud.gateway.server.webflux.routes[1].id=inventario
+spring.cloud.gateway.server.webflux.routes[1].uri=http://inventario-service:8082
+spring.cloud.gateway.server.webflux.routes[1].predicates[0]=Path=/api/inventario/**
+spring.cloud.gateway.server.webflux.routes[1].filters[0]=StripPrefix=0
+
+# Route: Cliente Service
+spring.cloud.gateway.server.webflux.routes[2].id=clientes
+spring.cloud.gateway.server.webflux.routes[2].uri=http://cliente-service:8083
+spring.cloud.gateway.server.webflux.routes[2].predicates[0]=Path=/api/clientes/**
+spring.cloud.gateway.server.webflux.routes[2].filters[0]=StripPrefix=0
+
+# Route: Entrega Service
+spring.cloud.gateway.server.webflux.routes[3].id=entregas
+spring.cloud.gateway.server.webflux.routes[3].uri=http://entrega-service:8084
+spring.cloud.gateway.server.webflux.routes[3].predicates[0]=Path=/api/entregas/**
+spring.cloud.gateway.server.webflux.routes[3].filters[0]=StripPrefix=0
+
+# Eureka Configuration
+eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+eureka.client.fetch-registry=true
+eureka.client.register-with-eureka=true
+
+# CORS Configuration
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-origins=http://localhost:3000,https://fluxora.uno
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-methods=GET,POST,PUT,PATCH,DELETE,OPTIONS
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-headers=Authorization,Content-Type,Accept,X-Requested-With
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allow-credentials=true
+spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].max-age=3600
+```
+
+### Eureka Server Configuration
+
+The Eureka Discovery Server (`microservice-eureka/src/main/resources/application.properties`):
+
+```properties
+spring.application.name=microservice-eureka
+server.port=8761
+
+# Eureka instance configuration
+eureka.instance.hostname=eureka-server
+eureka.instance.prefer-ip-address=false
+
+# Eureka client configuration (standalone mode)
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+eureka.client.service-url.defaultZone=http://eureka-server:8761/eureka/
+```
+
+## Database Configuration
+
+### PostgreSQL Connection Strings
+
+Fluxora uses separate PostgreSQL databases for each microservice:
+
+<CodeGroup>
+```bash Usuario Database
+jdbc:postgresql://localhost:5434/usuario_db
+# Docker: jdbc:postgresql://db-usuario:5432/usuario_db
+```
+
+```bash Cliente Database
+jdbc:postgresql://localhost:5433/cliente_db
+# Docker: jdbc:postgresql://db-cliente:5432/cliente_db
+```
+
+```bash Entrega Database
+jdbc:postgresql://localhost:5435/entrega_db
+# Docker: jdbc:postgresql://db-entrega:5432/entrega_db
+```
+
+```bash Inventario Database
+jdbc:postgresql://localhost:5436/inventario_db
+# Docker: jdbc:postgresql://db-inventario:5432/inventario_db
+```
+</CodeGroup>
+
+<Note>
+  When running with Docker Compose, use the container service names (`db-usuario`, `db-cliente`, etc.) instead of `localhost`.
+</Note>
+
+### JPA/Hibernate Settings
+
+All microservices use these JPA configurations:
+
+```properties
+# Use PostgreSQL dialect
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+
+# Auto-update database schema (use 'validate' in production)
+spring.jpa.hibernate.ddl-auto=update
+
+# Format SQL for readability in logs
+spring.jpa.properties.hibernate.format_sql=true
+```
+
+<Warning>
+  **Production**: Change `spring.jpa.hibernate.ddl-auto` to `validate` or `none` in production to prevent automatic schema changes.
+</Warning>
+
+## JWT Configuration
+
+### Secret Key Requirements
+
+The JWT secret must be:
+- **Base64-encoded**
+- **At least 256 bits (32 bytes)** for HS256 algorithm
+- **Identical across all services** that validate JWT tokens
+
+### Generate Secure JWT Secret
+
+```bash
+# Generate a secure 64-byte Base64-encoded secret
+openssl rand -base64 64
+
+# Example output:
+YourBase64EncodedSecretKeyHere/MustBeLongEnoughForHS256Algorithm==
+```
+
+### JWT Expiration
+
+The `JWT_EXP` variable sets token expiration in minutes:
+
+```bash
+# 60 minutes (1 hour) - recommended for development
+JWT_EXP=60
+
+# 1440 minutes (24 hours) - for production
+JWT_EXP=1440
+```
+
+## Timezone Configuration
+
+All services use `America/Santiago` timezone by default:
+
+```yaml
+environment:
+  - TZ=America/Santiago
+  - JAVA_OPTS=-Duser.timezone=America/Santiago
+```
+
+To change the timezone, update the `TZ` environment variable in `docker-compose.yml` or your `.env` files.
+
+## Configuration Profiles
+
+### Development Profile
+
+```bash
+# Enable detailed logging
+logging.level.root=INFO
+logging.level.com.microservice=DEBUG
+
+# Show SQL queries
+spring.jpa.show-sql=true
+```
+
+### Production Profile
+
+```bash
+# Minimal logging
+logging.level.root=WARN
+logging.level.com.microservice=INFO
+
+# Disable SQL logging
+spring.jpa.show-sql=false
+
+# Validate schema only
+spring.jpa.hibernate.ddl-auto=validate
+```
+
+## Environment-Specific Configuration
+
+<Accordion title="Docker Compose Environment">
+  When using Docker Compose, environment variables are passed through the `env_file` directive:
+
+  ```yaml
+  usuario-service:
+    env_file:
+      - ./Microservicios/microservice-usuario/.env
+  ```
+
+  Database hosts use Docker service names:
+  ```bash
+  DB_URL=jdbc:postgresql://db-usuario:5432/usuario_db
+  ```
+</Accordion>
+
+<Accordion title="Local Development Environment">
+  For local development without Docker:
+
+  ```bash
+  # Use localhost for all services
+  DB_URL=jdbc:postgresql://localhost:5434/usuario_db
+  EUREKA_URL=http://localhost:8761/eureka/
+  ```
+</Accordion>
+
+<Accordion title="Cloud Deployment (Render)">
+  For cloud platforms like Render, use managed database URLs:
+
+  ```bash
+  # Use platform-provided DATABASE_URL
+  DB_URL=${DATABASE_URL}
+  
+  # Use internal service URLs
+  EUREKA_URL=http://eureka-server:8761/eureka/
+  ```
+</Accordion>
+
+## Troubleshooting Configuration
+
+### Connection Issues
+
+If services can't connect to the database:
+
+```bash
+# Check PostgreSQL is running
+docker compose ps
+
+# Verify database credentials
+psql -h localhost -p 5434 -U fluxora -d usuario_db
+```
+
+### Eureka Registration Failures
+
+If services don't appear in Eureka dashboard:
+
+```bash
+# Verify Eureka URL is correct
+curl http://localhost:8761/eureka/apps
+
+# Check service logs for registration errors
+docker compose logs usuario-service
+```
+
+### JWT Validation Errors
+
+If JWT tokens are rejected:
+
+<Steps>
+  <Step title="Verify Secret Consistency">
+    Ensure `JWT_SECRET` is identical in all services that validate tokens (Usuario, Cliente, Entrega, Inventario).
+  </Step>
+  
+  <Step title="Check Secret Length">
+    The secret must be at least 32 bytes when Base64-decoded.
+  </Step>
+  
+  <Step title="Validate Token Format">
+    Tokens must include the `Bearer` prefix in the Authorization header.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Docker Setup" icon="docker" href="/getting-started/docker-setup">
+    Configure Docker Compose for development and production
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/getting-started/authentication">
+    Implement JWT authentication in your application
+  </Card>
+</CardGroup>

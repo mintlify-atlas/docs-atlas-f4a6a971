@@ -1,0 +1,377 @@
+---
+title: "Routing"
+description: "Next.js App Router and navigation patterns"
+---
+
+# Routing
+
+Fluxora uses Next.js 15's App Router for file-based routing with support for layouts, nested routes, and route groups.
+
+## App Router Structure
+
+```
+src/app/
+├── (app)/                  # Authenticated routes group
+│   └── dashboard/
+│       ├── page.tsx        # /dashboard
+│       ├── layout.tsx      # Shared layout
+│       ├── clientes/
+│       │   └── page.tsx    # /dashboard/clientes
+│       ├── inventario/
+│       │   ├── page.tsx    # /dashboard/inventario
+│       │   ├── productos/
+│       │   ├── materias/
+│       │   └── recetas/
+│       ├── entregas/
+│       │   ├── page.tsx
+│       │   ├── rutas/
+│       │   ├── entregas/
+│       │   └── detalle-ruta/
+│       ├── repartos/
+│       ├── reportes/
+│       └── admin/
+├── (auth)/                 # Public routes group
+│   └── layout.tsx
+├── driver/
+│   └── page.tsx           # /driver
+├── layout.tsx             # Root layout
+└── page.tsx               # / (login)
+```
+
+## Route Groups
+
+### (app) Group - Authenticated Routes
+
+Routes requiring authentication:
+
+```typescript
+// app/(app)/dashboard/layout.tsx
+export default function DashboardLayout({ children }) {
+  return (
+    <div className="dashboard">
+      <Sidebar />
+      <main>{children}</main>
+    </div>
+  );
+}
+```
+
+### (auth) Group - Public Routes
+
+Public authentication pages:
+
+```typescript
+// app/(auth)/layout.tsx
+export default function AuthLayout({ children }) {
+  return (
+    <div className="auth-layout">
+      {children}
+    </div>
+  );
+}
+```
+
+## Role-Based Navigation
+
+### Login Redirect Logic
+
+From `app/page.tsx`:
+
+```typescript
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE}/api/usuarios/auth/login`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }
+  );
+  
+  const data = await res.json();
+  localStorage.setItem("auth_token", `${data.tokenType} ${data.accessToken}`);
+  
+  // Decode JWT to get role
+  const tokenParts = data.accessToken.split(".");
+  const payload = JSON.parse(atob(tokenParts[1]));
+  
+  // Role-based redirect
+  if (payload.role === "DRIVER") {
+    window.location.href = "/driver";
+  } else if (payload.role === "PRODUCER") {
+    window.location.href = "/dashboard/inventario";
+  } else {
+    window.location.href = "/dashboard";
+  }
+};
+```
+
+## Navigation Components
+
+### Link Component
+
+Next.js Link for client-side navigation:
+
+```typescript
+import Link from 'next/link';
+
+<Link href="/dashboard/clientes">
+  Clients
+</Link>
+```
+
+### useRouter Hook
+
+Programmatic navigation:
+
+```typescript
+import { useRouter } from 'next/navigation';
+
+const MyComponent = () => {
+  const router = useRouter();
+  
+  const handleClick = () => {
+    router.push('/dashboard/inventario');
+  };
+  
+  return <button onClick={handleClick}>Go to Inventory</button>;
+};
+```
+
+## Dynamic Routes
+
+### Dynamic Segments
+
+Routes with parameters:
+
+```
+app/
+└── dashboard/
+    └── clientes/
+        └── [id]/
+            └── page.tsx    # /dashboard/clientes/123
+```
+
+Accessing parameters:
+
+```typescript
+export default function ClientPage({ params }: { params: { id: string } }) {
+  return <div>Client ID: {params.id}</div>;
+}
+```
+
+## Layouts
+
+### Root Layout
+
+App-wide layout:
+
+```typescript
+// app/layout.tsx
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+### Nested Layouts
+
+Dashboard layout:
+
+```typescript
+// app/(app)/dashboard/layout.tsx
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex">
+      <Sidebar />
+      <div className="flex-1">
+        <Header />
+        <main className="p-6">{children}</main>
+      </div>
+    </div>
+  );
+}
+```
+
+## Navigation Menu
+
+### Role-Based Menu
+
+Different menus for different roles:
+
+```typescript
+const Navigation = () => {
+  const role = getUserRole();
+  
+  const adminLinks = [
+    { href: '/dashboard', label: 'Dashboard' },
+    { href: '/dashboard/clientes', label: 'Clients' },
+    { href: '/dashboard/inventario', label: 'Inventory' },
+    { href: '/dashboard/entregas', label: 'Deliveries' },
+    { href: '/dashboard/reportes', label: 'Reports' },
+    { href: '/dashboard/admin', label: 'Admin' },
+  ];
+  
+  const producerLinks = [
+    { href: '/dashboard/inventario', label: 'Inventory' },
+    { href: '/dashboard/inventario/productos', label: 'Products' },
+    { href: '/dashboard/inventario/materias', label: 'Materials' },
+    { href: '/dashboard/inventario/recetas', label: 'Recipes' },
+  ];
+  
+  const driverLinks = [
+    { href: '/driver', label: 'My Routes' },
+  ];
+  
+  const links = role === 'ADMIN' ? adminLinks :
+                role === 'PRODUCER' ? producerLinks :
+                driverLinks;
+  
+  return (
+    <nav>
+      {links.map(link => (
+        <Link key={link.href} href={link.href}>
+          {link.label}
+        </Link>
+      ))}
+    </nav>
+  );
+};
+```
+
+## Protected Routes
+
+### Authentication Check
+
+Middleware or layout-level protection:
+
+```typescript
+// app/(app)/dashboard/layout.tsx
+import { redirect } from 'next/navigation';
+
+export default function DashboardLayout({ children }) {
+  const token = getAuthToken();
+  
+  if (!token) {
+    redirect('/');
+  }
+  
+  return <div>{children}</div>;
+}
+```
+
+## Loading States
+
+### loading.tsx
+
+Automatic loading UI:
+
+```typescript
+// app/(app)/dashboard/loading.tsx
+export default function Loading() {
+  return <div>Loading...</div>;
+}
+```
+
+## Error Handling
+
+### error.tsx
+
+Error boundaries:
+
+```typescript
+// app/(app)/dashboard/error.tsx
+'use client';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={() => reset()}>Try again</button>
+    </div>
+  );
+}
+```
+
+## Route Transitions
+
+### Active Link Highlighting
+
+```typescript
+import { usePathname } from 'next/navigation';
+
+const NavLink = ({ href, children }) => {
+  const pathname = usePathname();
+  const isActive = pathname === href;
+  
+  return (
+    <Link
+      href={href}
+      className={isActive ? 'active' : ''}
+    >
+      {children}
+    </Link>
+  );
+};
+```
+
+## Best Practices
+
+<Accordion title="Route Organization">
+  - Use route groups for logical separation
+  - Keep related routes together
+  - Use consistent naming conventions
+  - Implement proper layouts for shared UI
+</Accordion>
+
+<Accordion title="Navigation">
+  - Use Link component for client-side navigation
+  - Implement role-based navigation menus
+  - Show active route indicators
+  - Handle navigation errors gracefully
+</Accordion>
+
+<Accordion title="Protection">
+  - Protect routes at layout level
+  - Validate authentication tokens
+  - Redirect unauthorized users
+  - Check roles for specific routes
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Components" icon="cube" href="/development/components">
+    Build navigation components
+  </Card>
+  <Card title="State Management" icon="database" href="/development/state-management">
+    Manage navigation state
+  </Card>
+  <Card title="Authentication" icon="lock" href="/getting-started/authentication">
+    Implement auth protection
+  </Card>
+  <Card title="Frontend Overview" icon="window" href="/development/frontend-overview">
+    Back to frontend overview
+  </Card>
+</CardGroup>

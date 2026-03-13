@@ -1,0 +1,123 @@
+---
+title: "Cliente Service"
+description: "Client management microservice"
+---
+
+# Cliente Service
+
+The Cliente Service manages customer information, profiles, and delivery preferences in Fluxora.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Port" icon="network-wired">
+    8083
+  </Card>
+  <Card title="Database" icon="database">
+    cliente_db (PostgreSQL)
+  </Card>
+  <Card title="Spring Boot" icon="leaf">
+    3.5.4
+  </Card>
+  <Card title="Java" icon="mug-hot">
+    21
+  </Card>
+</CardGroup>
+
+## Responsibilities
+
+- Client profile management
+- Contact information storage
+- Delivery address management
+- GPS coordinates for routing
+- Pricing information
+- Integration with delivery routes
+
+## Cliente Entity
+
+Client entity with comprehensive fields:
+
+- `id` (Long): Primary key
+- `nombre` (String): Client business name
+- `rut` (String): Tax ID number
+- `direccion` (String): Delivery address
+- `comuna` (String): Municipality
+- `telefono` (String): Contact phone
+- `email` (String): Contact email
+- `latitud` (Double): GPS latitude
+- `longitud` (Double): GPS longitude
+- `precioCliente` (BigDecimal): Regular price
+- `precioClienteEspecial` (BigDecimal): Special price
+- `rutaId` (Long): Associated route ID
+
+## Controllers
+
+### ClienteController
+
+Manages client operations:
+- `GET /clientes`: List all clients with route info (ADMIN)
+- `POST /clientes`: Create new client (ADMIN)
+- `GET /clientes/{id}`: Get multiple clients by IDs (ADMIN, DRIVER)
+- `GET /clientes/cliente/{id}`: Get single client (ADMIN, DRIVER)
+- `PUT /clientes/{id}`: Update client (ADMIN)
+- `DELETE /clientes/{id}`: Delete client (ADMIN)
+
+For detailed endpoint documentation, see [Cliente Endpoints](/api/endpoints/clientes).
+
+## Database Schema
+
+**clientes table:**
+- id (BIGSERIAL PRIMARY KEY)
+- nombre (VARCHAR)
+- rut (VARCHAR UNIQUE)
+- direccion (VARCHAR)
+- comuna (VARCHAR)
+- telefono (VARCHAR)
+- email (VARCHAR)
+- latitud (DOUBLE PRECISION)
+- longitud (DOUBLE PRECISION)
+- precio_cliente (DECIMAL)
+- precio_cliente_especial (DECIMAL)
+- ruta_id (BIGINT)
+
+## Dependencies
+
+Key dependencies:
+- Spring Boot Starter Web
+- Spring Boot Starter Data JPA
+- Spring Cloud Eureka Client
+- Spring Cloud OpenFeign
+- JWT libraries
+- PostgreSQL Driver
+- MapStruct
+
+## Integration
+
+### Feign Client
+
+Integrates with Entrega Service using OpenFeign:
+
+```java
+@FeignClient(name = "entrega-service")
+public interface EntregaServiceClient {
+    @GetMapping("/rutas/clientes/{rutaId}")
+    List<Long> getClientesByRutaId(@PathVariable Long rutaId);
+}
+```
+
+This allows the Cliente Service to fetch route information for enriched client data.
+
+### Service Discovery
+
+Registered with Eureka for:
+- Service discovery
+- Load balancing
+- Health monitoring
+
+## Security
+
+Implements role-based authorization:
+- ADMIN: Full CRUD access
+- DRIVER: Read-only access to assigned clients
+
+For more details, see [Security](/development/security).

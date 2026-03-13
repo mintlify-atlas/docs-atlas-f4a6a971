@@ -1,0 +1,604 @@
+---
+title: 'Inter-Service Communication'
+description: 'OpenFeign clients, service-to-service calls, error handling, and JWT propagation'
+icon: 'network-wired'
+---
+
+## Overview
+
+Fluxora microservices communicate via **OpenFeign** declarative REST clients. Feign simplifies HTTP calls with annotations and automatic request/response mapping.
+
+## OpenFeign Client Implementation
+
+### Enabling Feign Clients
+
+Add `@EnableFeignClients` to the main application class:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/MicroserviceClienteApplication.java
+@SpringBootApplication
+@EnableFeignClients          // Scan for @FeignClient interfaces
+@EnableDiscoveryClient       // Enable Eureka service discovery
+public class MicroserviceClienteApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MicroserviceClienteApplication.class, args);
+    }
+}
+```
+
+### Basic Feign Client
+
+Create an interface with `@FeignClient` annotation:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/client/EntregaServiceClient.java
+package com.microservice.cliente.client;
+
+import java.util.List;
+import java.util.Map;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import com.microservice.cliente.config.FeignClientInterceptor;
+
+@FeignClient(name = "microservice-entrega", configuration = FeignClientInterceptor.class)
+public interface EntregaServiceClient {
+    
+    @DeleteMapping("/api/entregas/entrega/cliente/{idCliente}/relaciones")
+    ResponseEntity<String> eliminarRelacionesCliente(@PathVariable("idCliente") Long idCliente);
+    
+    @GetMapping("/api/entregas/rutas/cliente/{idCliente}/ruta")
+    ResponseEntity<Map<String, Object>> getNombreRutaPorCliente(@PathVariable("idCliente") Long idCliente);
+    
+    @GetMapping("/api/entregas/rutas/clientes/batch")
+    ResponseEntity<Map<String, String>> getNombresRutasPorClientes(
+        @RequestParam("clienteIds") List<Long> clienteIds
+    );
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Service Discovery" icon="magnifying-glass">
+    The `name` parameter references the service name registered in Eureka, not a URL.
+  </Card>
+  <Card title="Configuration" icon="gear">
+    The `configuration` parameter specifies a custom config class for interceptors.
+  </Card>
+  <Card title="Path Mapping" icon="route">
+    Use standard Spring Web annotations: `@GetMapping`, `@PostMapping`, `@PathVariable`, etc.
+  </Card>
+  <Card title="Type Safety" icon="shield-check">
+    Return types are automatically deserialized to Java objects.
+  </Card>
+</CardGroup>
+
+### Feign Client with Multiple Endpoints
+
+```java microservice-entrega/src/main/java/com/microservice/entrega/client/InventarioServiceClient.java
+package com.microservice.entrega.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import java.util.List;
+import java.util.Map;
+
+@FeignClient(name = "microservice-inventario", configuration = FeignClientInterceptor.class)
+public interface InventarioServiceClient {
+
+    @PutMapping("api/inventario/productos/{productoId}/lotes/{loteId}")
+    ResponseEntity<?> actualizarStockLote(
+        @PathVariable("productoId") Long productoId,
+        @PathVariable("loteId") Long loteId,
+        @RequestBody Map<String, Object> datos
+    );
+
+    @PutMapping("api/inventario/productos/{productoId}/descontar-stock")
+    ResponseEntity<?> descontarInventario(
+        @PathVariable("productoId") Long productoId,
+        @RequestBody Map<String, Object> datos
+    );
+
+    @GetMapping("api/inventario/productos/lotes/{loteId}")
+    ResponseEntity<?> getLoteById(@PathVariable("loteId") Long loteId);
+
+    @GetMapping("api/inventario/productos/{id}")
+    ResponseEntity<?> getProductoById(@PathVariable("id") Long id);
+
+    @GetMapping("api/inventario/productos")
+    ResponseEntity<?> getProductos();
+
+    @GetMapping("api/inventario/productos/{productoId}/stock-total")
+    ResponseEntity<Integer> getStockTotalProducto(@PathVariable("productoId") Long productoId);
+
+    /**
+     * Endpoint batch: obtener información de múltiples lotes con sus productos en una sola llamada
+     */
+    @GetMapping("api/inventario/productos/lotes-batch")
+    ResponseEntity<List<Map<String, Object>>> getLotesConProductosBatch(@RequestParam("ids") List<Long> ids);
+}
+```
+
+<Tip>
+**Batch Endpoints:** When fetching multiple related resources, use batch endpoints to reduce network round trips.
+
+Instead of 10 individual calls, make one call with all IDs:
+```java
+getLotesConProductosBatch(List.of(1L, 2L, 3L, 4L, 5L))
+```
+</Tip>
+
+### Feign Client Dependencies
+
+```xml pom.xml
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+</dependencies>
+
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-dependencies</artifactId>
+            <version>2025.0.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+## Service-to-Service Calls
+
+### Using Feign Clients in Services
+
+Inject Feign clients like any other Spring bean:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/service/ClienteService.java
+@Slf4j
+@Service
+public class ClienteService {
+
+    private final ClienteRepository clienteRepository;
+    private final EntregaServiceClient entregaServiceClient;  // Feign client
+    private final ClienteMapper clienteMapper;
+
+    public ClienteService(ClienteRepository clienteRepository, 
+                         EntregaServiceClient entregaServiceClient,
+                         ClienteMapper clienteMapper) {
+        this.clienteRepository = clienteRepository;
+        this.entregaServiceClient = entregaServiceClient;
+        this.clienteMapper = clienteMapper;
+    }
+
+    // Simple external call
+    private String obtenerNombreRuta(Long idCliente) {
+        try {
+            ResponseEntity<Map<String, Object>> response = 
+                entregaServiceClient.getNombreRutaPorCliente(idCliente);
+            if (response.getBody() != null && response.getBody().get("nombreRuta") != null) {
+                return (String) response.getBody().get("nombreRuta");
+            }
+            return "Sin ruta asignada";
+        } catch (Exception e) {
+            log.error("Error al obtener nombre de ruta para cliente {}: {}", 
+                     idCliente, e.getMessage(), e);
+            return "Sin ruta asignada";
+        }
+    }
+
+    // Batch external call for efficiency
+    private Map<String, String> obtenerNombresRutaBatch(List<Long> clienteIds) {
+        try {
+            ResponseEntity<Map<String, String>> response = 
+                entregaServiceClient.getNombresRutasPorClientes(clienteIds);
+            
+            if (response.getBody() != null) {
+                return response.getBody();
+            }
+            
+            log.warn("El servicio de entregas retornó body vacío para {} clientes", clienteIds.size());
+            return Collections.emptyMap();
+            
+        } catch (Exception e) {
+            log.error("Error al obtener nombres de rutas batch para {} clientes: {}", 
+                     clienteIds.size(), e.getMessage(), e);
+            return Collections.emptyMap();
+        }
+    }
+
+    // Using external service in business logic
+    @Transactional
+    public void deleteCliente(Long id) {
+        clienteRepository.findById(id)
+            .orElseThrow(() -> new ClienteNotFoundException(id));
+        
+        try {
+            // Delete related records in another service first
+            entregaServiceClient.eliminarRelacionesCliente(id);
+            clienteRepository.deleteById(id);
+            log.info("Cliente con ID {} eliminado exitosamente", id);
+        } catch (Exception e) {
+            log.error("Error al eliminar cliente con ID {}: {}", id, e.getMessage(), e);
+            throw new ClienteDeleteException(id, e);
+        }
+    }
+}
+```
+
+<Check>
+**Best Practices for Service Calls:**
+- Always wrap calls in try-catch blocks
+- Log errors with context (IDs, parameters)
+- Return sensible defaults instead of throwing exceptions
+- Use batch endpoints when fetching multiple resources
+- Check for null responses before accessing data
+</Check>
+
+## Error Handling in Feign
+
+### Graceful Degradation
+
+Handle Feign errors gracefully to prevent cascading failures:
+
+```java
+private Map<String, String> obtenerNombresRutaBatch(List<Long> clienteIds) {
+    try {
+        ResponseEntity<Map<String, String>> response = 
+            entregaServiceClient.getNombresRutasPorClientes(clienteIds);
+        
+        if (response.getBody() != null) {
+            return response.getBody();
+        }
+        
+        log.warn("El servicio de entregas retornó body vacío para {} clientes", clienteIds.size());
+        return Collections.emptyMap();  // Return empty map instead of null
+        
+    } catch (Exception e) {
+        log.error("Error al obtener nombres de rutas batch para {} clientes: {}", 
+                 clienteIds.size(), e.getMessage(), e);
+        return Collections.emptyMap();  // Degrade gracefully
+    }
+}
+```
+
+### Custom Error Decoder
+
+Create a custom error decoder to handle specific HTTP error codes:
+
+```java
+@Configuration
+public class FeignConfig {
+
+    @Bean
+    public ErrorDecoder errorDecoder() {
+        return (methodKey, response) -> {
+            if (response.status() == 404) {
+                return new ResourceNotFoundException("Resource not found");
+            }
+            if (response.status() == 503) {
+                return new ServiceUnavailableException("Service temporarily unavailable");
+            }
+            return new FeignException.FeignServerException(
+                response.status(), 
+                response.reason(), 
+                response.request(), 
+                response.headers()
+            );
+        };
+    }
+}
+```
+
+### Retry Configuration
+
+Configure automatic retries for transient failures:
+
+```java
+@Configuration
+public class FeignConfig {
+
+    @Bean
+    public Retryer retryer() {
+        return new Retryer.Default(
+            100,    // Initial retry interval (ms)
+            1000,   // Max retry interval (ms)
+            3       // Max attempts
+        );
+    }
+}
+```
+
+<Warning>
+Be careful with retries on write operations (POST, PUT, DELETE) as they may not be idempotent.
+</Warning>
+
+## JWT Propagation
+
+### FeignClientInterceptor
+
+Propagating JWT tokens is **critical** for authenticated service-to-service calls:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/config/FeignClientInterceptor.java
+package com.microservice.cliente.config;
+
+import feign.RequestInterceptor;
+import feign.RequestTemplate;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+@Configuration
+public class FeignClientInterceptor implements RequestInterceptor {
+
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+
+    @Override
+    public void apply(RequestTemplate template) {
+
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+
+        if (attributes != null) {
+            HttpServletRequest request = attributes.getRequest();
+            String token = request.getHeader(AUTHORIZATION_HEADER);
+
+            if (token != null && token.startsWith("Bearer ")) {
+                template.header(AUTHORIZATION_HEADER, token);  // Forward JWT to downstream service
+            }
+        }
+    }
+}
+```
+
+<Steps>
+  <Step title="Get Current Request">
+    Use `RequestContextHolder` to access the current HTTP request.
+  </Step>
+  <Step title="Extract Authorization Header">
+    Read the `Authorization` header from the incoming request.
+  </Step>
+  <Step title="Forward to Feign Request">
+    Add the same header to the outgoing Feign request using `template.header()`.
+  </Step>
+</Steps>
+
+<Warning>
+**Critical:** Without this interceptor, downstream services will reject requests with `401 Unauthorized`.
+</Warning>
+
+### Registering the Interceptor
+
+Reference the interceptor in `@FeignClient` configuration:
+
+```java
+@FeignClient(name = "microservice-entrega", configuration = FeignClientInterceptor.class)
+public interface EntregaServiceClient {
+    // ...
+}
+```
+
+### Testing JWT Propagation
+
+```java
+@Test
+void testJwtPropagation() {
+    // Mock the incoming request context
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader("Authorization", "Bearer eyJhbGc...");
+    
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    
+    // Call service method that uses Feign client
+    clienteService.getAllClientesConInfoRuta();
+    
+    // Verify the Feign client received the token
+    verify(entregaServiceClient).getNombresRutasPorClientes(anyList());
+}
+```
+
+## Circuit Breaker Patterns
+
+While not currently implemented in Fluxora, circuit breakers prevent cascading failures:
+
+### Resilience4j Integration
+
+```xml pom.xml
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+</dependency>
+```
+
+```java
+@Service
+public class ClienteService {
+
+    @CircuitBreaker(name = "entregaService", fallbackMethod = "fallbackObtenerRuta")
+    private String obtenerNombreRuta(Long idCliente) {
+        ResponseEntity<Map<String, Object>> response = 
+            entregaServiceClient.getNombreRutaPorCliente(idCliente);
+        return (String) response.getBody().get("nombreRuta");
+    }
+
+    // Fallback method with same signature + Throwable parameter
+    private String fallbackObtenerRuta(Long idCliente, Throwable t) {
+        log.warn("Circuit breaker fallback for cliente {}: {}", idCliente, t.getMessage());
+        return "Sin ruta asignada";
+    }
+}
+```
+
+### Circuit Breaker Configuration
+
+```yaml application.yml
+resilience4j:
+  circuitbreaker:
+    instances:
+      entregaService:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+```
+
+<Tip>
+Circuit breakers are especially important for services with external dependencies or high latency.
+</Tip>
+
+## Request/Response Logging
+
+### Feign Logger Configuration
+
+Enable request/response logging for debugging:
+
+```java
+@Configuration
+public class FeignConfig {
+
+    @Bean
+    Logger.Level feignLoggerLevel() {
+        return Logger.Level.FULL;  // Log headers, body, and metadata
+    }
+}
+```
+
+```yaml application.yml
+logging:
+  level:
+    com.microservice.cliente.client: DEBUG
+```
+
+### Log Levels
+
+| Level | What's Logged |
+|-------|---------------|
+| `NONE` | No logging (default) |
+| `BASIC` | Request method, URL, response status, execution time |
+| `HEADERS` | Basic + request/response headers |
+| `FULL` | Headers + request/response bodies |
+
+<Warning>
+Use `FULL` logging only in development. It can expose sensitive data and impact performance.
+</Warning>
+
+## Performance Optimization
+
+### Connection Pooling
+
+```java
+@Configuration
+public class FeignConfig {
+
+    @Bean
+    public Client feignClient() {
+        return new ApacheHttpClient(HttpClients.custom()
+            .setMaxConnTotal(200)        // Total connections
+            .setMaxConnPerRoute(50)      // Connections per route
+            .build());
+    }
+}
+```
+
+### Timeouts
+
+```yaml application.yml
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000      # 5 seconds
+        readTimeout: 10000        # 10 seconds
+      microservice-entrega:
+        connectTimeout: 3000      # Service-specific timeout
+        readTimeout: 5000
+```
+
+### Compression
+
+```yaml application.yml
+feign:
+  compression:
+    request:
+      enabled: true
+      mime-types: application/json,application/xml
+      min-request-size: 2048
+    response:
+      enabled: true
+```
+
+## Common Patterns
+
+### Aggregating Data from Multiple Services
+
+```java
+public ClienteDTO getClienteCompleto(Long id) {
+    // Fetch from local database
+    Cliente cliente = clienteRepository.findById(id)
+        .orElseThrow(() -> new ClienteNotFoundException(id));
+    
+    // Enrich with data from entrega service
+    String nombreRuta = "Sin ruta asignada";
+    try {
+        ResponseEntity<Map<String, Object>> rutaResponse = 
+            entregaServiceClient.getNombreRutaPorCliente(id);
+        if (rutaResponse.getBody() != null) {
+            nombreRuta = (String) rutaResponse.getBody().get("nombreRuta");
+        }
+    } catch (Exception e) {
+        log.error("Error fetching ruta for cliente {}", id, e);
+    }
+    
+    // Map to DTO with enriched data
+    return clienteMapper.toDTO(cliente, nombreRuta);
+}
+```
+
+### Parallel Service Calls
+
+```java
+public Map<String, Object> getDashboardData() {
+    CompletableFuture<List<Cliente>> clientes = 
+        CompletableFuture.supplyAsync(() -> clienteRepository.findAll());
+    
+    CompletableFuture<Map<String, Object>> stats = 
+        CompletableFuture.supplyAsync(() -> entregaServiceClient.getStats().getBody());
+    
+    // Wait for both to complete
+    CompletableFuture.allOf(clientes, stats).join();
+    
+    return Map.of(
+        "clientes", clientes.join(),
+        "stats", stats.join()
+    );
+}
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Spring Boot Services" icon="spring" href="/development/spring-boot-services">
+    Service layer architecture and dependency injection
+  </Card>
+  <Card title="Security" icon="shield" href="/development/security">
+    JWT authentication and role-based authorization
+  </Card>
+  <Card title="Service Discovery" icon="compass" href="/development/service-discovery">
+    Eureka service registry configuration
+  </Card>
+  <Card title="API Gateway" icon="gateway" href="/development/api-gateway-pattern">
+    Centralized routing and load balancing
+  </Card>
+</CardGroup>

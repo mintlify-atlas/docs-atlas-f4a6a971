@@ -1,0 +1,172 @@
+---
+title: "Entrega Service"
+description: "Delivery and route management microservice"
+---
+
+# Entrega Service
+
+The Entrega Service manages delivery routes, driver assignments, and delivery tracking in Fluxora.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Port" icon="network-wired">
+    8084
+  </Card>
+  <Card title="Database" icon="database">
+    entrega_db (PostgreSQL)
+  </Card>
+  <Card title="Spring Boot" icon="leaf">
+    3.5.4
+  </Card>
+  <Card title="Java" icon="mug-hot">
+    21
+  </Card>
+</CardGroup>
+
+## Responsibilities
+
+- Delivery route management
+- Driver assignment
+- Delivery recording
+- Route optimization with OR-Tools
+- Delivery scheduling
+- Session management
+- Delivery history tracking
+- Sales and delivery reporting
+
+## Main Entities
+
+### Ruta
+Delivery routes:
+- Route details (name, description)
+- Assigned drivers
+- Active/inactive status
+- Associated clients
+
+### RegistroEntrega
+Delivery records:
+- Delivery details
+- Movement type (VENTA, DEVOLUCION, INTERCAMBIO)
+- Product quantities
+- Payment amounts
+- Timestamps
+
+### ProgramacionEntrega
+Scheduled deliveries:
+- Future delivery planning
+- Product requirements
+- Client assignments
+
+### SesionReparto
+Delivery sessions:
+- Session tracking
+- Route-driver-date association
+- Session status
+- Financial totals
+
+### Cliente (referenced)
+Client assignments to routes
+
+## Controllers
+
+### EntregaController
+Manages deliveries:
+- Active route management
+- Delivery recording
+- Delivery history
+- Session management
+
+### RutaController
+Manages routes:
+- Route CRUD operations
+- Driver assignments
+- Client associations
+- Route optimization
+
+For detailed endpoint documentation, see [Entrega Endpoints](/api/endpoints/entregas).
+
+## Database Schema
+
+**rutas:**
+- id, nombre, descripcion, activa
+
+**registros_entrega:**
+- id, sesion_reparto_id, cliente_id, tipo_movimiento, fecha_entrega, monto_total
+
+**programacion_entrega:**
+- id, ruta_id, cliente_id, producto_id, cantidad, fecha_programada
+
+**sesiones_reparto:**
+- id, ruta_id, usuario_id, fecha, estado
+
+**rutas_clientes:**
+- ruta_id, cliente_id (many-to-many)
+
+**rutas_usuarios:**
+- ruta_id, usuario_id (many-to-many)
+
+## Dependencies
+
+Key dependencies:
+- Spring Boot Starter Web
+- Spring Boot Starter Data JPA
+- Spring Cloud Eureka Client
+- PostgreSQL Driver
+- MapStruct
+- Lombok
+
+## Integration
+
+### External Services
+
+<CardGroup cols={2}>
+  <Card title="OR-Tools" icon="route">
+    Route optimization service for efficient delivery paths
+  </Card>
+  <Card title="OSRM" icon="map">
+    Open Source Routing Machine for distance calculations
+  </Card>
+</CardGroup>
+
+### Service Discovery
+
+Registered with Eureka for:
+- Service registration
+- Health monitoring
+- Load balancing
+
+## Key Features
+
+### Route Optimization
+
+Integrates with OR-Tools to:
+- Calculate optimal delivery sequences
+- Minimize travel distance
+- Consider client locations
+- Reduce delivery time by 20-40%
+
+### Delivery Types
+
+Supports multiple movement types:
+- **VENTA**: Regular sale delivery
+- **DEVOLUCION**: Product return
+- **INTERCAMBIO**: Product exchange
+
+### Session Management
+
+Tracks delivery sessions:
+- Route start/end times
+- Driver assignments
+- Financial totals
+- Product quantities delivered
+
+### Reporting
+
+Provides comprehensive reports:
+- Daily delivery summaries
+- Sales by route/client
+- Driver performance
+- Product movement
+
+For more details, see [Delivery Management](/features/delivery-management).

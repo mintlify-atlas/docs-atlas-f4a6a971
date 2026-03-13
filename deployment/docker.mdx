@@ -1,0 +1,621 @@
+---
+title: 'Docker Deployment'
+description: 'Deploy Fluxora using Docker and Docker Compose'
+---
+
+## Overview
+
+Fluxora uses Docker Compose to orchestrate all microservices, databases, and the frontend application. This guide walks you through deploying the entire system locally using Docker.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install Docker">
+    Install Docker Desktop or Docker Engine (version 20.10 or higher)
+    ```bash
+    docker --version
+    ```
+  </Step>
+  
+  <Step title="Install Docker Compose">
+    Ensure Docker Compose is installed (version 2.0 or higher)
+    ```bash
+    docker-compose --version
+    ```
+  </Step>
+  
+  <Step title="Clone Repository">
+    Clone the Fluxora repository and navigate to the root directory
+    ```bash
+    git clone <repository-url>
+    cd fluxora
+    ```
+  </Step>
+</Steps>
+
+## Architecture Overview
+
+The Docker Compose setup includes:
+
+- **4 PostgreSQL databases** (one for each microservice)
+- **API Gateway** (port 8080)
+- **Eureka Server** (port 8761)
+- **4 Microservices** (Usuario, Cliente, Inventario, Entrega)
+- **Next.js Frontend** (port 3000)
+
+## Docker Compose Configuration
+
+The `docker-compose.yml` file defines the entire Fluxora infrastructure:
+
+### Networks
+
+```yaml
+networks:
+  fluxora-network:
+    driver: bridge
+```
+
+All services communicate through the `fluxora-network` bridge network.
+
+### Volumes
+
+```yaml
+volumes:
+  postgres_cliente_data:
+  postgres_usuario_data:
+  postgres_entrega_data:
+  postgres_inventario_data:
+```
+
+Persistent volumes ensure database data survives container restarts.
+
+## Database Services
+
+### PostgreSQL Instances
+
+Each microservice has its own PostgreSQL database:
+
+<CodeGroup>
+```yaml Cliente Database
+db-cliente:
+  image: postgres:15-alpine
+  container_name: postgres-cliente
+  environment:
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+    POSTGRES_DB: cliente_db
+    TZ: America/Santiago
+    PGTZ: America/Santiago
+  ports:
+    - "5433:5432"
+  volumes:
+    - postgres_cliente_data:/var/lib/postgresql/data
+    - /etc/localtime:/etc/localtime:ro
+    - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
+  networks:
+    - fluxora-network
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fluxora"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+```
+
+```yaml Usuario Database
+db-usuario:
+  image: postgres:15-alpine
+  container_name: postgres-usuario
+  environment:
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+    POSTGRES_DB: usuario_db
+    TZ: America/Santiago
+    PGTZ: America/Santiago
+  ports:
+    - "5434:5432"
+  volumes:
+    - postgres_usuario_data:/var/lib/postgresql/data
+  networks:
+    - fluxora-network
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fluxora"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+```
+
+```yaml Entrega Database
+db-entrega:
+  image: postgres:15-alpine
+  container_name: postgres-entrega
+  environment:
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+    POSTGRES_DB: entrega_db
+    TZ: America/Santiago
+    PGTZ: America/Santiago
+  ports:
+    - "5435:5432"
+  volumes:
+    - postgres_entrega_data:/var/lib/postgresql/data
+  networks:
+    - fluxora-network
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fluxora"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+```
+
+```yaml Inventario Database
+db-inventario:
+  image: postgres:15-alpine
+  container_name: postgres-inventario
+  environment:
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+    POSTGRES_DB: inventario_db
+    TZ: America/Santiago
+    PGTZ: America/Santiago
+  ports:
+    - "5436:5432"
+  volumes:
+    - postgres_inventario_data:/var/lib/postgresql/data
+  networks:
+    - fluxora-network
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U fluxora"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+```
+</CodeGroup>
+
+### Database Port Mappings
+
+| Service | Container | Host Port | Container Port |
+|---------|-----------|-----------|----------------|
+| Cliente DB | postgres-cliente | 5433 | 5432 |
+| Usuario DB | postgres-usuario | 5434 | 5432 |
+| Entrega DB | postgres-entrega | 5435 | 5432 |
+| Inventario DB | postgres-inventario | 5436 | 5432 |
+
+<Note>
+All databases use timezone `America/Santiago` with health checks that verify PostgreSQL readiness every 5 seconds.
+</Note>
+
+## Infrastructure Services
+
+### Eureka Server (Service Discovery)
+
+```yaml
+eureka-server:
+  build:
+    context: ./Microservicios/microservice-eureka
+    dockerfile: Dockerfile
+  container_name: eureka-server
+  ports:
+    - "8761:8761"
+  environment:
+    - TZ=America/Santiago
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+  networks:
+    - fluxora-network
+```
+
+Eureka Server runs on port 8761 and provides service discovery for all microservices.
+
+### API Gateway
+
+```yaml
+api-gateway:
+  build:
+    context: ./Microservicios/microservice-gateway
+  container_name: api-gateway
+  ports:
+    - "8080:8080"
+  depends_on:
+    - eureka-server
+  environment:
+    - TZ=America/Santiago
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+  networks:
+    - fluxora-network
+```
+
+The API Gateway is the main entry point for all backend requests, running on port 8080.
+
+## Microservices
+
+### Usuario Service
+
+```yaml
+usuario-service:
+  build:
+    context: ./Microservicios/microservice-usuario
+  container_name: usuario-service
+  ports:
+    - "8081:8081"
+  env_file:
+    - ./Microservicios/microservice-usuario/.env
+  environment:
+    - TZ=America/Santiago
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+  depends_on:
+    - db-usuario
+    - eureka-server
+  networks:
+    - fluxora-network
+```
+
+### Cliente Service
+
+```yaml
+cliente-service:
+  build:
+    context: ./Microservicios/microservice-cliente
+  container_name: cliente-service
+  ports:
+    - "8083:8083"
+  env_file:
+    - ./Microservicios/microservice-cliente/.env
+  environment:
+    - TZ=America/Santiago
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+  depends_on:
+    - db-cliente
+    - eureka-server
+  networks:
+    - fluxora-network
+```
+
+### Inventario Service
+
+```yaml
+inventario-service:
+  build:
+    context: ./Microservicios/microservice-inventario
+  container_name: inventario-service
+  ports:
+    - "8082:8082"
+  env_file:
+    - ./Microservicios/microservice-inventario/.env
+  environment:
+    - TZ=America/Santiago
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+  depends_on:
+    - db-inventario
+    - eureka-server
+  networks:
+    - fluxora-network
+```
+
+### Entrega Service
+
+```yaml
+entrega-service:
+  build:
+    context: ./Microservicios/microservice-entrega
+  container_name: entrega-service
+  ports:
+    - "8084:8084"
+  env_file:
+    - ./Microservicios/microservice-entrega/.env
+  environment:
+    - TZ=America/Santiago
+    - JAVA_OPTS=-Duser.timezone=America/Santiago
+  depends_on:
+    - db-entrega
+    - eureka-server
+  networks:
+    - fluxora-network
+```
+
+### Service Port Mappings
+
+| Service | Container | Port |
+|---------|-----------|------|
+| API Gateway | api-gateway | 8080 |
+| Eureka Server | eureka-server | 8761 |
+| Usuario Service | usuario-service | 8081 |
+| Inventario Service | inventario-service | 8082 |
+| Cliente Service | cliente-service | 8083 |
+| Entrega Service | entrega-service | 8084 |
+
+## Frontend
+
+### Next.js Application
+
+```yaml
+frontend:
+  build:
+    context: ./frontend-fluxora
+  container_name: frontend
+  ports:
+    - "3000:3000"
+  env_file:
+    - ./frontend-fluxora/.env
+  environment:
+    - TZ=America/Santiago
+  depends_on:
+    - api-gateway
+  networks:
+    - fluxora-network
+```
+
+The frontend runs on port 3000 and connects to the API Gateway.
+
+## Deployment Steps
+
+<Steps>
+  <Step title="Configure Environment Variables">
+    Create `.env` files for each microservice and the frontend. See [Environment Variables](/deployment/environment-variables) for details.
+    
+    ```bash
+    # Example for usuario service
+    cd Microservicios/microservice-usuario
+    cp .env.example .env
+    # Edit .env with your configuration
+    ```
+  </Step>
+  
+  <Step title="Build and Start Services">
+    From the root directory, build and start all services:
+    
+    ```bash
+    docker-compose up -d --build
+    ```
+    
+    This command:
+    - Builds all Docker images
+    - Creates the network and volumes
+    - Starts all containers in detached mode
+  </Step>
+  
+  <Step title="Verify Services">
+    Check that all services are running:
+    
+    ```bash
+    docker-compose ps
+    ```
+    
+    All services should show status `Up`.
+  </Step>
+  
+  <Step title="Check Logs">
+    Monitor service logs:
+    
+    ```bash
+    # All services
+    docker-compose logs -f
+    
+    # Specific service
+    docker-compose logs -f usuario-service
+    ```
+  </Step>
+  
+  <Step title="Verify Eureka Registration">
+    Access Eureka Dashboard at `http://localhost:8761` to verify all microservices are registered.
+  </Step>
+  
+  <Step title="Access Application">
+    - **Frontend**: http://localhost:3000
+    - **API Gateway**: http://localhost:8080
+    - **Eureka Dashboard**: http://localhost:8761
+  </Step>
+</Steps>
+
+## Health Checks
+
+All PostgreSQL databases include health checks:
+
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U fluxora"]
+  interval: 5s
+  timeout: 5s
+  retries: 5
+```
+
+This ensures microservices only start after their databases are ready.
+
+## Managing Services
+
+### Stop Services
+
+```bash
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (WARNING: deletes all data)
+docker-compose down -v
+```
+
+### Restart Services
+
+```bash
+# Restart all services
+docker-compose restart
+
+# Restart specific service
+docker-compose restart usuario-service
+```
+
+### Rebuild Services
+
+```bash
+# Rebuild all services
+docker-compose up -d --build
+
+# Rebuild specific service
+docker-compose up -d --build usuario-service
+```
+
+### View Logs
+
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service with tail
+docker-compose logs -f --tail=100 usuario-service
+
+# Multiple services
+docker-compose logs -f usuario-service cliente-service
+```
+
+### Execute Commands in Containers
+
+```bash
+# Access PostgreSQL database
+docker exec -it postgres-usuario psql -U fluxora -d usuario_db
+
+# Access service container
+docker exec -it usuario-service bash
+```
+
+## Troubleshooting
+
+### Services Won't Start
+
+<Warning>
+Check if ports are already in use:
+```bash
+# Check if port is in use
+lsof -i :8080
+lsof -i :3000
+lsof -i :5433
+```
+</Warning>
+
+### Database Connection Issues
+
+1. Verify database health:
+```bash
+docker-compose ps db-usuario
+```
+
+2. Check database logs:
+```bash
+docker-compose logs db-usuario
+```
+
+3. Test database connection:
+```bash
+docker exec -it postgres-usuario psql -U fluxora -d usuario_db -c "SELECT 1;"
+```
+
+### Microservice Not Registering with Eureka
+
+1. Check Eureka Server is running:
+```bash
+docker-compose logs eureka-server
+```
+
+2. Verify microservice can reach Eureka:
+```bash
+docker exec -it usuario-service curl http://eureka-server:8761/eureka/apps
+```
+
+3. Check microservice environment variables:
+```bash
+docker exec -it usuario-service env | grep EUREKA
+```
+
+### Build Failures
+
+1. Clean Docker cache:
+```bash
+docker-compose build --no-cache
+```
+
+2. Remove old images:
+```bash
+docker system prune -a
+```
+
+3. Check Dockerfile and build context paths
+
+### Frontend Can't Connect to Backend
+
+1. Verify API Gateway is accessible:
+```bash
+curl http://localhost:8080/api/usuarios/health
+```
+
+2. Check frontend environment variables point to correct gateway URL
+
+3. Review CORS configuration in API Gateway
+
+### High Memory Usage
+
+Limit Java heap size by modifying `JAVA_OPTS`:
+
+```yaml
+environment:
+  - JAVA_OPTS=-Xmx512m -Xms256m -Duser.timezone=America/Santiago
+```
+
+## Production Considerations
+
+<Warning>
+The default configuration is for development. For production:
+
+1. **Change default passwords** in docker-compose.yml
+2. **Use secrets management** instead of plain text passwords
+3. **Enable SSL/TLS** for all services
+4. **Configure proper resource limits**:
+   ```yaml
+   deploy:
+     resources:
+       limits:
+         cpus: '1'
+         memory: 1G
+   ```
+5. **Set up proper logging and monitoring**
+6. **Use production-grade database configurations**
+7. **Implement backup strategies** for database volumes
+</Warning>
+
+## Docker Image Details
+
+### Java Microservices
+
+All Java microservices use multi-stage builds:
+
+```dockerfile
+# Build stage
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+### Frontend
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN rm -rf .next
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+## Next Steps
+
+- Configure [Environment Variables](/deployment/environment-variables)
+- Set up [Render Deployment](/deployment/render) for cloud hosting
+- Review [Monitoring]() setup

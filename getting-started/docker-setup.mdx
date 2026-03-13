@@ -1,0 +1,738 @@
+---
+title: 'Docker Setup'
+description: 'Complete guide to running Fluxora with Docker Compose'
+icon: 'docker'
+---
+
+## Overview
+
+Fluxora uses Docker Compose to orchestrate all microservices, databases, and the frontend. This guide covers the complete Docker setup, from basic usage to advanced configurations.
+
+## Docker Compose Architecture
+
+Fluxora's Docker Compose setup includes:
+
+- **4 PostgreSQL databases** (Cliente, Usuario, Entrega, Inventario)
+- **1 Eureka Discovery Server** (Service registry)
+- **1 API Gateway** (Entry point for all requests)
+- **4 Microservices** (Cliente, Usuario, Entrega, Inventario)
+- **1 Next.js Frontend** (User interface)
+
+All services communicate over a custom bridge network called `fluxora-network`.
+
+## Quick Start
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/your-org/fluxora.git
+    cd fluxora
+    ```
+  </Step>
+
+  <Step title="Build and Start Services">
+    ```bash
+    docker compose up -d
+    ```
+    
+    This builds all images and starts containers in detached mode.
+  </Step>
+
+  <Step title="Verify Services">
+    ```bash
+    # Check all containers are running
+    docker compose ps
+    
+    # View Eureka dashboard
+    open http://localhost:8761
+    
+    # Access frontend
+    open http://localhost:3000
+    ```
+  </Step>
+</Steps>
+
+## Docker Compose Configuration
+
+### Main Compose File
+
+The `docker-compose.yml` defines all services:
+
+```yaml
+services:
+  # PostgreSQL Databases
+  db-cliente:
+    image: postgres:15-alpine
+    container_name: postgres-cliente
+    environment:
+      POSTGRES_USER: fluxora
+      POSTGRES_PASSWORD: fluxora123
+      POSTGRES_DB: cliente_db
+      TZ: America/Santiago
+      PGTZ: America/Santiago
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_cliente_data:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
+    networks:
+      - fluxora-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-usuario:
+    image: postgres:15-alpine
+    container_name: postgres-usuario
+    environment:
+      POSTGRES_USER: fluxora
+      POSTGRES_PASSWORD: fluxora123
+      POSTGRES_DB: usuario_db
+      TZ: America/Santiago
+      PGTZ: America/Santiago
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_usuario_data:/var/lib/postgresql/data
+    networks:
+      - fluxora-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-entrega:
+    image: postgres:15-alpine
+    container_name: postgres-entrega
+    environment:
+      POSTGRES_USER: fluxora
+      POSTGRES_PASSWORD: fluxora123
+      POSTGRES_DB: entrega_db
+      TZ: America/Santiago
+      PGTZ: America/Santiago
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_entrega_data:/var/lib/postgresql/data
+    networks:
+      - fluxora-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-inventario:
+    image: postgres:15-alpine
+    container_name: postgres-inventario
+    environment:
+      POSTGRES_USER: fluxora
+      POSTGRES_PASSWORD: fluxora123
+      POSTGRES_DB: inventario_db
+      TZ: America/Santiago
+      PGTZ: America/Santiago
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_inventario_data:/var/lib/postgresql/data
+    networks:
+      - fluxora-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fluxora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Eureka Discovery Server
+  eureka-server:
+    build:
+      context: ./Microservicios/microservice-eureka
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - TZ=America/Santiago
+      - JAVA_OPTS=-Duser.timezone=America/Santiago
+    networks:
+      - fluxora-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./Microservicios/microservice-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+    environment:
+      - TZ=America/Santiago
+      - JAVA_OPTS=-Duser.timezone=America/Santiago
+    networks:
+      - fluxora-network
+
+  # Microservices
+  cliente-service:
+    build:
+      context: ./Microservicios/microservice-cliente
+    container_name: cliente-service
+    ports:
+      - "8083:8083"
+    env_file:
+      - ./Microservicios/microservice-cliente/.env
+    environment:
+      - TZ=America/Santiago
+      - JAVA_OPTS=-Duser.timezone=America/Santiago
+    depends_on:
+      - db-cliente
+      - eureka-server
+    networks:
+      - fluxora-network
+
+  usuario-service:
+    build:
+      context: ./Microservicios/microservice-usuario
+    container_name: usuario-service
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./Microservicios/microservice-usuario/.env
+    environment:
+      - TZ=America/Santiago
+      - JAVA_OPTS=-Duser.timezone=America/Santiago
+    depends_on:
+      - db-usuario
+      - eureka-server
+    networks:
+      - fluxora-network
+
+  entrega-service:
+    build:
+      context: ./Microservicios/microservice-entrega
+    container_name: entrega-service
+    ports:
+      - "8084:8084"
+    env_file:
+      - ./Microservicios/microservice-entrega/.env
+    environment:
+      - TZ=America/Santiago
+      - JAVA_OPTS=-Duser.timezone=America/Santiago
+    depends_on:
+      - db-entrega
+      - eureka-server
+    networks:
+      - fluxora-network
+
+  inventario-service:
+    build:
+      context: ./Microservicios/microservice-inventario
+    container_name: inventario-service
+    ports:
+      - "8082:8082"
+    env_file:
+      - ./Microservicios/microservice-inventario/.env
+    environment:
+      - TZ=America/Santiago
+      - JAVA_OPTS=-Duser.timezone=America/Santiago
+    depends_on:
+      - db-inventario
+      - eureka-server
+    networks:
+      - fluxora-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend-fluxora
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend-fluxora/.env
+    environment:
+      - TZ=America/Santiago
+    depends_on:
+      - api-gateway
+    networks:
+      - fluxora-network
+
+networks:
+  fluxora-network:
+    driver: bridge
+
+volumes:
+  postgres_cliente_data:
+  postgres_usuario_data:
+  postgres_entrega_data:
+  postgres_inventario_data:
+```
+
+## Service Details
+
+### Database Services
+
+Each microservice has its own PostgreSQL database for data isolation:
+
+<CodeGroup>
+```yaml Cliente Database
+db-cliente:
+  image: postgres:15-alpine
+  ports:
+    - "5433:5432"  # External:Internal
+  environment:
+    POSTGRES_DB: cliente_db
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+```
+
+```yaml Usuario Database
+db-usuario:
+  image: postgres:15-alpine
+  ports:
+    - "5434:5432"
+  environment:
+    POSTGRES_DB: usuario_db
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+```
+
+```yaml Entrega Database
+db-entrega:
+  image: postgres:15-alpine
+  ports:
+    - "5435:5432"
+  environment:
+    POSTGRES_DB: entrega_db
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+```
+
+```yaml Inventario Database
+db-inventario:
+  image: postgres:15-alpine
+  ports:
+    - "5436:5432"
+  environment:
+    POSTGRES_DB: inventario_db
+    POSTGRES_USER: fluxora
+    POSTGRES_PASSWORD: fluxora123
+```
+</CodeGroup>
+
+### Health Checks
+
+All PostgreSQL databases include health checks to ensure they're ready:
+
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U fluxora"]
+  interval: 5s
+  timeout: 5s
+  retries: 5
+```
+
+This prevents dependent services from starting before the database is ready.
+
+### Service Dependencies
+
+Services start in the correct order using `depends_on`:
+
+```yaml
+usuario-service:
+  depends_on:
+    - db-usuario      # Wait for database
+    - eureka-server   # Wait for service registry
+```
+
+## Development Override
+
+For local development with hot-reload, use `docker-compose.override.yml`:
+
+```yaml
+services:
+  frontend:
+    build:
+      context: ./frontend-fluxora
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./frontend-fluxora:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    command: npm run dev -- --hostname 0.0.0.0
+```
+
+Docker Compose automatically merges this with `docker-compose.yml`:
+
+```bash
+# Starts with development overrides
+docker compose up
+```
+
+## Multi-Stage Docker Builds
+
+Fluxora uses multi-stage builds for optimized images.
+
+### Spring Boot Microservices
+
+Example Dockerfile for microservices:
+
+```dockerfile
+# Build stage
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /app
+
+# Cache dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Build application
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Runtime stage (smaller image)
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+
+# Copy only the JAR
+COPY --from=build /app/target/*.jar app.jar
+
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+<Note>
+  The build stage uses the full JDK and Maven, while the runtime stage uses only the JRE, reducing the final image size by ~400MB.
+</Note>
+
+### Next.js Frontend
+
+Production Dockerfile for the frontend:
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source and build
+COPY . .
+RUN rm -rf .next
+RUN npm run build
+
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+## Docker Commands
+
+### Basic Operations
+
+```bash
+# Start all services
+docker compose up -d
+
+# Stop all services
+docker compose down
+
+# Restart a specific service
+docker compose restart usuario-service
+
+# View logs
+docker compose logs -f usuario-service
+
+# View all logs
+docker compose logs -f
+```
+
+### Building and Rebuilding
+
+```bash
+# Rebuild all images
+docker compose build
+
+# Rebuild specific service
+docker compose build usuario-service
+
+# Rebuild without cache
+docker compose build --no-cache
+
+# Build and start
+docker compose up -d --build
+```
+
+### Database Operations
+
+```bash
+# Access PostgreSQL CLI
+docker compose exec db-usuario psql -U fluxora -d usuario_db
+
+# Backup database
+docker compose exec db-usuario pg_dump -U fluxora usuario_db > backup.sql
+
+# Restore database
+cat backup.sql | docker compose exec -T db-usuario psql -U fluxora -d usuario_db
+```
+
+### Cleanup
+
+```bash
+# Stop and remove containers (keeps volumes)
+docker compose down
+
+# Remove containers and volumes (deletes data)
+docker compose down -v
+
+# Remove all images
+docker compose down --rmi all
+```
+
+## Networking
+
+All services communicate over the `fluxora-network` bridge network:
+
+```yaml
+networks:
+  fluxora-network:
+    driver: bridge
+```
+
+### Service Communication
+
+Services use Docker's internal DNS:
+
+```bash
+# Usuario service connects to its database
+DB_URL=jdbc:postgresql://db-usuario:5432/usuario_db
+
+# API Gateway connects to microservices
+spring.cloud.gateway.routes[0].uri=http://usuario-service:8081
+
+# Frontend connects to API Gateway
+NEXT_PUBLIC_API_URL=http://api-gateway:8080
+```
+
+<Note>
+  Container names are resolvable as hostnames within the Docker network.
+</Note>
+
+## Volumes and Persistence
+
+Database data persists across container restarts using named volumes:
+
+```yaml
+volumes:
+  postgres_cliente_data:
+  postgres_usuario_data:
+  postgres_entrega_data:
+  postgres_inventario_data:
+```
+
+### Volume Management
+
+```bash
+# List volumes
+docker volume ls
+
+# Inspect volume
+docker volume inspect fluxora_postgres_usuario_data
+
+# Remove unused volumes
+docker volume prune
+```
+
+## Troubleshooting
+
+### Services Won't Start
+
+<Accordion title="Port Already in Use">
+  ```bash
+  # Check what's using the port
+  lsof -i :8080
+  
+  # Kill the process or change the port mapping
+  ports:
+    - "8090:8080"  # Use external port 8090
+  ```
+</Accordion>
+
+<Accordion title="Build Failures">
+  ```bash
+  # View build output
+  docker compose build --progress=plain
+  
+  # Build without cache
+  docker compose build --no-cache usuario-service
+  ```
+</Accordion>
+
+<Accordion title="Container Exits Immediately">
+  ```bash
+  # Check logs for errors
+  docker compose logs usuario-service
+  
+  # Inspect container
+  docker compose ps
+  docker inspect usuario-service
+  ```
+</Accordion>
+
+### Database Connection Issues
+
+<Accordion title="Connection Refused">
+  1. Ensure database container is running:
+     ```bash
+     docker compose ps db-usuario
+     ```
+  
+  2. Check health status:
+     ```bash
+     docker compose ps --format json | jq '.[] | {name: .Name, health: .Health}'
+     ```
+  
+  3. Verify network connectivity:
+     ```bash
+     docker compose exec usuario-service ping db-usuario
+     ```
+</Accordion>
+
+<Accordion title="Authentication Failed">
+  Verify credentials match in:
+  - `docker-compose.yml` database environment
+  - Microservice `.env` file
+  
+  ```bash
+  # Test credentials
+  docker compose exec db-usuario psql -U fluxora -d usuario_db
+  ```
+</Accordion>
+
+### Service Discovery Issues
+
+<Accordion title="Services Not Registering with Eureka">
+  1. Check Eureka server is running:
+     ```bash
+     curl http://localhost:8761
+     ```
+  
+  2. Verify EUREKA_URL in service `.env`:
+     ```bash
+     EUREKA_URL=http://eureka-server:8761/eureka/
+     ```
+  
+  3. Check service logs:
+     ```bash
+     docker compose logs usuario-service | grep -i eureka
+     ```
+</Accordion>
+
+### Performance Issues
+
+<Accordion title="Slow Build Times">
+  - Use BuildKit for faster builds:
+    ```bash
+    DOCKER_BUILDKIT=1 docker compose build
+    ```
+  
+  - Enable layer caching:
+    ```bash
+    COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose build
+    ```
+</Accordion>
+
+<Accordion title="High Memory Usage">
+  Limit container resources:
+  ```yaml
+  usuario-service:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+  ```
+</Accordion>
+
+## Production Considerations
+
+<Warning>
+  **Security**: Never use default passwords in production. Use Docker secrets or environment-specific `.env` files.
+</Warning>
+
+### Production Checklist
+
+<Steps>
+  <Step title="Use Strong Passwords">
+    ```bash
+    # Generate secure password
+    openssl rand -base64 32
+    
+    # Set in .env
+    POSTGRES_PASSWORD=<generated-password>
+    ```
+  </Step>
+
+  <Step title="Enable TLS/SSL">
+    Configure PostgreSQL with SSL certificates and update connection strings:
+    ```bash
+    DB_URL=jdbc:postgresql://db-usuario:5432/usuario_db?sslmode=require
+    ```
+  </Step>
+
+  <Step title="Set Resource Limits">
+    Prevent resource exhaustion:
+    ```yaml
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    ```
+  </Step>
+
+  <Step title="Configure Logging">
+    Use a logging driver:
+    ```yaml
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ```
+  </Step>
+
+  <Step title="Health Monitoring">
+    Add health checks for all services and integrate with monitoring tools like Prometheus.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/getting-started/authentication">
+    Set up JWT authentication and secure your APIs
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/getting-started/configuration">
+    Fine-tune environment variables and application properties
+  </Card>
+  
+  <Card title="Monitoring" icon="chart-line" href="">
+    Set up monitoring and observability for your services
+  </Card>
+  
+  <Card title="Production Deployment" icon="cloud" href="">
+    Deploy Fluxora to production environments
+  </Card>
+</CardGroup>

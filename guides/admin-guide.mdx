@@ -1,0 +1,516 @@
+---
+title: 'Administrator Guide'
+description: 'Complete guide for administrators managing the Fluxora system'
+icon: 'shield-halved'
+---
+
+## Overview
+
+As an **Administrator**, you have full access to all features and functionality in Fluxora. You are responsible for managing the entire system, including users, clients, inventory, delivery routes, and generating reports.
+
+<Tip>
+Administrators have the highest level of permissions and can perform all operations across the system.
+</Tip>
+
+## Key Responsibilities
+
+Administrators manage:
+- User accounts and role assignments
+- Client management and route assignments
+- Complete inventory oversight
+- Delivery route planning and driver assignments
+- System-wide reporting and analytics
+- Production planning and scheduling
+
+---
+
+## Getting Started
+
+<Steps>
+  <Step title="Login to the System">
+    Navigate to the Fluxora login page and enter your administrator credentials. Upon successful authentication, you'll be redirected to the main dashboard at `/dashboard`.
+  </Step>
+  
+  <Step title="Review Dashboard">
+    The admin dashboard displays key metrics including:
+    - Total deliveries and active routes
+    - Inventory levels and alerts
+    - Recent activity and pending tasks
+    - Sales and production statistics
+  </Step>
+  
+  <Step title="Navigate Main Sections">
+    Access different management areas from the sidebar:
+    - **Clients**: Manage customer database
+    - **Inventory**: Control products and raw materials
+    - **Deliveries**: Monitor routes and shipments
+    - **Repartos**: Manage driver sessions
+    - **Reports**: Generate business analytics
+    - **Admin**: User management
+  </Step>
+</Steps>
+
+---
+
+## User Management
+
+### Managing User Accounts
+
+Administrators can create and manage all user types in the system.
+
+<Card title="Available User Roles" icon="users">
+  - **ADMIN**: Full system access
+  - **PRODUCER**: Inventory and production management
+  - **DRIVER**: Delivery route access only
+</Card>
+
+#### Creating a New User
+
+1. Navigate to **Admin** section from the sidebar
+2. Click "Create New User" button
+3. Fill in the required information:
+   - Name
+   - Email (used for login)
+   - Password
+   - Role (ADMIN, PRODUCER, or DRIVER)
+4. Click "Create" to save the user
+
+#### Viewing Users by Role
+
+The system allows filtering users by their assigned role:
+- View all administrators
+- List all producers
+- Show all drivers
+
+This helps when assigning drivers to routes or managing team permissions.
+
+#### Updating User Information
+
+To modify an existing user:
+1. Locate the user in the user list
+2. Click the "Edit" button
+3. Update name, email, or role as needed
+4. Save changes
+
+<Tip>
+When changing a user's role, they will need to log out and log back in for the changes to take effect.
+</Tip>
+
+#### Deleting Users
+
+Before deleting a user:
+- Ensure they have no active delivery sessions (for drivers)
+- Reassign any routes if necessary
+- Confirm the deletion to remove the user permanently
+
+---
+
+## Client Management
+
+### Adding New Clients
+
+Clients are the businesses that receive deliveries.
+
+<Steps>
+  <Step title="Access Client Section">
+    Navigate to **Clients** from the main dashboard sidebar.
+  </Step>
+  
+  <Step title="Create Client">
+    Click "Add Client" and enter:
+    - Client name
+    - Delivery address
+    - Geographic coordinates (latitude/longitude)
+    - Contact information
+  </Step>
+  
+  <Step title="Assign to Route">
+    Optionally assign the client to a delivery route immediately, or do this later from the Routes section.
+  </Step>
+</Steps>
+
+### Viewing Client Information
+
+<Accordion title="Client Details Include">
+  - Basic information (name, address)
+  - Assigned delivery route
+  - Delivery history
+  - Product preferences
+  - Outstanding balances
+</Accordion>
+
+Both administrators and drivers can view client information, but only administrators can modify it.
+
+### Updating Client Data
+
+1. Find the client in the client list
+2. Click to view details
+3. Select "Edit" option
+4. Modify necessary fields
+5. Save changes
+
+### Deleting Clients
+
+<Warning>
+Before deleting a client, the system will automatically remove all related data including delivery history and route assignments.
+</Warning>
+
+The deletion process:
+1. System removes delivery relationships
+2. Removes client from assigned routes
+3. Archives delivery history
+4. Deletes the client record
+
+---
+
+## Route Management
+
+### Creating Delivery Routes
+
+Routes organize deliveries by geographic area.
+
+<Card title="Route Creation" icon="route">
+  A route includes:
+  - Route name and identifier
+  - Origin point (bakery location)
+  - List of assigned clients
+  - Assigned driver
+</Card>
+
+**Steps to create a route:**
+
+1. Go to **Deliveries** > **Routes**
+2. Click "Create New Route"
+3. Enter route details (name, origin coordinates)
+4. Save the route
+5. Assign clients to the route
+
+### Assigning Drivers to Routes
+
+Each route should have one assigned driver:
+
+```bash
+Endpoint: POST /api/entregas/entrega/asignar-driver
+Permission: ADMIN only
+```
+
+1. Navigate to route details
+2. Select "Assign Driver"
+3. Choose from available drivers (users with DRIVER role)
+4. Confirm assignment
+
+### Managing Route Clients
+
+#### Adding Clients to Routes
+
+- View clients without routes
+- Select client and target route
+- Confirm assignment
+
+#### Reassigning Clients
+
+- Move clients between routes as needed
+- Update delivery schedules accordingly
+- System preserves delivery history
+
+### Route Optimization
+
+Fluxora uses OR-Tools for route optimization:
+- Automatically orders clients for efficient delivery
+- Minimizes travel distance
+- Uses OSRM for actual route mapping
+- Factors in delivery time windows
+
+### Deleting Routes
+
+When deleting a route:
+1. All assigned clients are unassigned
+2. Driver assignment is removed
+3. Future scheduled deliveries are cancelled
+4. Historical data is preserved
+
+---
+
+## Inventory Management
+
+### Products
+
+Manage finished products ready for delivery:
+
+- View all products
+- Create new product types
+- Update product information
+- Track production batches (lotes)
+
+### Production Batches (Lotes)
+
+Track individual production runs:
+
+<Accordion title="Batch Information">
+  - Production date
+  - Expiration date
+  - Quantity produced
+  - Current stock level
+  - Product type
+</Accordion>
+
+**Creating a new batch:**
+1. Navigate to **Inventory** > **Products**
+2. Select a product
+3. Click "New Batch"
+4. Enter production details and quantity
+5. Save the batch
+
+### Raw Materials (Materias Primas)
+
+Manage ingredients and supplies:
+
+- View current stock levels
+- Record purchases (compras)
+- Track consumption by production
+- Set low-stock alerts
+
+**Recording raw material purchases:**
+1. Go to **Inventory** > **Raw Materials**
+2. Select material
+3. Click "Record Purchase"
+4. Enter quantity and cost
+5. Update stock levels
+
+### Recipes (Recetas)
+
+Define ingredient requirements for products:
+
+- Create recipes for products
+- Specify raw material quantities
+- Calculate production costs
+- Plan material requirements
+
+**Creating a recipe:**
+1. Navigate to **Inventory** > **Recipes**
+2. Click "New Recipe"
+3. Select product
+4. Add required raw materials and quantities
+5. Save recipe
+
+### Inventory Reports
+
+Generate comprehensive inventory reports:
+- Current stock levels
+- Low stock alerts
+- Production history
+- Material consumption trends
+- Waste tracking (mermas)
+
+---
+
+## Delivery Management
+
+### Scheduling Deliveries
+
+Plan future deliveries for clients:
+
+<Steps>
+  <Step title="Select Route and Date">
+    Choose the delivery route and target date.
+  </Step>
+  
+  <Step title="Schedule Client Deliveries">
+    For each client on the route, specify:
+    - Corriente (regular bread) quantity in kg
+    - Especial (special bread) quantity in kg
+  </Step>
+  
+  <Step title="Confirm Schedule">
+    Review and save the delivery schedule.
+  </Step>
+</Steps>
+
+### Viewing Active Routes
+
+Monitor all delivery routes and their status:
+- See routes with scheduled deliveries
+- View assigned drivers
+- Check delivery progress
+- Track completion status
+
+### Delivery History
+
+View past deliveries by:
+- Client
+- Route
+- Date range
+- Driver
+- Delivery type (sale, return, exchange)
+
+### Production Planning
+
+View daily production requirements based on scheduled deliveries:
+
+```bash
+Endpoint: GET /api/entregas/entrega/plan-produccion/{fecha}
+Permission: ADMIN, DRIVER
+```
+
+The production plan shows:
+- Total kg needed per product type
+- Client count
+- Route distribution
+
+---
+
+## Reporting and Analytics
+
+### Available Reports
+
+<CardGroup cols={2}>
+  <Card title="Delivery Reports" icon="truck">
+    Track delivery performance, completion rates, and route efficiency.
+  </Card>
+  
+  <Card title="Sales Reports" icon="chart-line">
+    Analyze revenue, product sales, and client purchasing patterns.
+  </Card>
+  
+  <Card title="Inventory Reports" icon="boxes-stacked">
+    Monitor stock levels, consumption rates, and reorder needs.
+  </Card>
+  
+  <Card title="Driver Performance" icon="id-card">
+    Review driver statistics, delivery counts, and session summaries.
+  </Card>
+</CardGroup>
+
+### Generating Delivery Reports
+
+1. Navigate to **Reports** > **Deliveries**
+2. Select date range (start and end date)
+3. Optionally filter by specific route
+4. Click "Generate Report"
+
+Report includes:
+- Total deliveries completed
+- Quantities delivered by product type
+- Route efficiency metrics
+- Client satisfaction data
+
+### Generating Sales Reports
+
+1. Go to **Reports** > **Sales**
+2. Choose date range
+3. Generate report
+
+Report shows:
+- Total revenue
+- Sales by product type
+- Top clients by volume
+- Payment status
+
+### Dashboard Statistics
+
+The admin dashboard endpoint provides real-time metrics:
+
+```bash
+Endpoint: GET /api/entregas/entrega/estadisticas-dashboard
+Permission: ADMIN only
+```
+
+---
+
+## Driver Session Management
+
+Monitor and manage driver delivery sessions:
+
+### Viewing Sessions
+
+See all delivery sessions (repartos):
+- Session date and route
+- Assigned driver
+- Delivery counts
+- Payment status
+
+### Marking Sessions as Paid
+
+After settling accounts with drivers:
+
+1. Locate the session in **Repartos**
+2. Review session summary
+3. Click "Mark as Paid"
+4. Session status updates to paid
+
+<Tip>
+Only administrators can mark sessions as paid. This ensures proper financial control.
+</Tip>
+
+---
+
+## Best Practices
+
+### Daily Workflow
+
+1. **Morning**: Review scheduled deliveries for the day
+2. Check inventory levels against production plan
+3. Verify driver assignments
+4. Monitor active delivery progress
+5. **Evening**: Review completed deliveries and mark sessions as paid
+
+### Weekly Tasks
+
+- Review inventory levels and plan purchases
+- Analyze sales reports
+- Optimize routes based on new clients or changes
+- Check user accounts and permissions
+- Review driver performance
+
+### Security Best Practices
+
+<Warning>
+- Never share administrator credentials
+- Regularly review user permissions
+- Use strong passwords
+- Log out when leaving workstation unattended
+</Warning>
+
+### Data Management
+
+- Regularly generate and archive reports
+- Keep client information up to date
+- Maintain accurate inventory records
+- Document any system changes or issues
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordion title="Cannot assign driver to route">
+  Ensure the user has the DRIVER role assigned. Only users with DRIVER role can be assigned to routes.
+</Accordion>
+
+<Accordion title="Client not appearing in route">
+  Verify the client is properly assigned to the route and has scheduled deliveries for the selected date.
+</Accordion>
+
+<Accordion title="Inventory discrepancies">
+  Check recent deliveries and production batches. Ensure all transactions are properly recorded in the system.
+</Accordion>
+
+<Accordion title="Report generation fails">
+  Verify date range is valid and not too large. Check that there is data available for the selected period.
+</Accordion>
+
+---
+
+## Getting Help
+
+If you encounter issues beyond this guide:
+
+1. Check system logs for error messages
+2. Verify your permissions for the specific action
+3. Consult with your system administrator or technical support
+4. Document the issue with screenshots for support requests
+
+<Tip>
+The administrator role is powerful but also carries responsibility for system integrity. Always double-check before deleting data or making major changes.
+</Tip>

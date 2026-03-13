@@ -1,0 +1,204 @@
+---
+title: 'User Management'
+description: 'Create and manage users with role-based access control in Fluxora'
+icon: 'users'
+---
+
+## Overview
+
+Fluxora's User Management system allows administrators to create, manage, and control access for all users in the platform. The system implements role-based access control (RBAC) to ensure users only have access to features relevant to their responsibilities.
+
+## User Roles
+
+Fluxora supports three primary user roles:
+
+<CardGroup cols={3}>
+  <Card title="Admin" icon="user-shield">
+    Full system access including user management, system configuration, and all features
+  </Card>
+  <Card title="Producer" icon="industry">
+    Access to inventory management, production planning, and recipes
+  </Card>
+  <Card title="Driver" icon="truck">
+    Access to delivery routes, mobile app for deliveries, and delivery tracking
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### User Profile Fields
+
+Each user account includes the following information:
+
+- **ID**: Unique identifier (auto-generated)
+- **Name** (nombre): Full name of the user
+- **Email**: Email address used for login and notifications
+- **Password**: Secure password (encrypted)
+- **Role** (rol): Assigned role determining access permissions
+
+### Creating a New User
+
+<Steps>
+  <Step title="Access Admin Panel">
+    Navigate to **Dashboard > Admin > Users and Roles** from the main menu
+  </Step>
+  
+  <Step title="Click New User">
+    Click the **New User** button in the top right corner
+  </Step>
+  
+  <Step title="Fill User Information">
+    Enter the following required fields:
+    - Full name
+    - Email address (must be unique)
+    - Password (minimum 8 characters)
+  </Step>
+  
+  <Step title="Assign Role">
+    Select the appropriate role from the dropdown:
+    - **Admin**: For system administrators
+    - **Producer**: For production staff
+    - **Driver**: For delivery personnel
+  </Step>
+  
+  <Step title="Save User">
+    Click **Register User** to create the account
+  </Step>
+</Steps>
+
+<Note>
+  Each user must have a unique email address. The system will notify you if the email is already in use.
+</Note>
+
+## Managing Existing Users
+
+### Viewing Users
+
+The Users dashboard displays all registered users in a table format with the following information:
+
+- User name
+- Email address
+- Assigned role
+- Action buttons (Edit, Delete)
+
+### Editing User Information
+
+<Steps>
+  <Step title="Locate User">
+    Use the search bar to find the user by name or email
+  </Step>
+  
+  <Step title="Click Edit">
+    Click the **Edit** button on the user's row
+  </Step>
+  
+  <Step title="Update Information">
+    Modify the user's name, email, or role as needed
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **Save Changes** to update the user profile
+  </Step>
+</Steps>
+
+### Deleting Users
+
+<Warning>
+  Deleting a user is permanent and cannot be undone. Ensure you have verified the deletion before confirming.
+</Warning>
+
+1. Click the **Delete** button next to the user
+2. Confirm the deletion in the modal dialog
+3. The user account will be permanently removed
+
+## Authentication & Security
+
+### Login Process
+
+Users access Fluxora through the login page:
+
+- Enter registered email address
+- Enter password
+- Click **Sign In**
+
+Upon successful authentication, users are redirected to their role-specific dashboard.
+
+### Permission System
+
+Fluxora implements module-based permissions:
+
+| Module | Admin | Producer | Driver |
+|--------|-------|----------|--------|
+| User Management | ✅ | ❌ | ❌ |
+| System Configuration | ✅ | ❌ | ❌ |
+| Inventory & Production | ✅ | ✅ | ❌ |
+| Clients | ✅ | ✅ | ✅ |
+| Deliveries & Routes | ✅ | ✅ | ✅ |
+| Reports | ✅ | ✅ | ❌ |
+
+<Note>
+  Users attempting to access unauthorized modules will be redirected to their default dashboard.
+</Note>
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Adding a new delivery driver">
+    1. Navigate to Admin > Users and Roles
+    2. Click **New User**
+    3. Enter driver's name and email
+    4. Create a temporary password
+    5. Select **Driver** role
+    6. Save the user
+    7. Provide login credentials to the driver
+    8. Driver can change password on first login
+  </Accordion>
+
+  <Accordion title="Changing a user's role">
+    1. Find the user in the Users table
+    2. Click **Edit**
+    3. Select the new role from the dropdown
+    4. Click **Save Changes**
+    5. User's permissions will update immediately
+  </Accordion>
+
+  <Accordion title="Deactivating a user temporarily">
+    Fluxora does not currently support user deactivation. You can:
+    - Delete the user account (can be recreated later)
+    - Change the user's password to prevent login
+    - Downgrade permissions by changing their role
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Strong Passwords" icon="lock">
+    Require users to use passwords with at least 8 characters, including numbers and special characters
+  </Card>
+  
+  <Card title="Principle of Least Privilege" icon="shield-check">
+    Assign users the minimum role necessary for their job functions
+  </Card>
+  
+  <Card title="Regular Audits" icon="clipboard-check">
+    Periodically review user accounts and remove inactive users
+  </Card>
+  
+  <Card title="Unique Emails" icon="envelope">
+    Ensure each user has their own email address for accountability
+  </Card>
+</CardGroup>
+
+## Tips & Tricks
+
+- **Search Functionality**: Use the search bar to quickly find users by name or email
+- **Password Reset**: If a user forgets their password, an admin can edit the user and set a new temporary password
+- **Role Testing**: Create test accounts for each role to verify permissions work correctly
+- **Email Notifications**: User emails are used for future notifications about deliveries, production, and system updates
+
+## Related Features
+
+- [Client Management](/features/client-management) - Manage customer accounts and profiles
+- [Delivery Management](/features/delivery-management) - Assign drivers to delivery routes
+- [Reporting](/features/reporting) - Generate reports on user activities

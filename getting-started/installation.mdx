@@ -1,0 +1,250 @@
+---
+title: 'Installation'
+description: 'Install Fluxora microservices-based SaaS management system'
+icon: 'download'
+---
+
+## Prerequisites
+
+Before installing Fluxora, ensure you have the following tools installed on your system:
+
+<Steps>
+  <Step title="Java Development Kit 21">
+    Fluxora microservices require Java 21 to run. Download and install from [Oracle](https://www.oracle.com/java/technologies/downloads/) or use OpenJDK.
+
+    ```bash
+    # Verify Java installation
+    java -version
+    # Should output: openjdk version "21.x.x"
+    ```
+  </Step>
+
+  <Step title="Apache Maven 3.9+">
+    Maven is used to build the Spring Boot microservices.
+
+    ```bash
+    # Verify Maven installation
+    mvn -version
+    # Should output: Apache Maven 3.9.x or higher
+    ```
+  </Step>
+
+  <Step title="Node.js 20+">
+    The frontend requires Node.js 20 or higher.
+
+    ```bash
+    # Verify Node.js installation
+    node -version
+    # Should output: v20.x.x or higher
+    ```
+  </Step>
+
+  <Step title="PostgreSQL 15">
+    Fluxora uses PostgreSQL 15 for all microservice databases.
+
+    ```bash
+    # Verify PostgreSQL installation
+    psql --version
+    # Should output: psql (PostgreSQL) 15.x
+    ```
+  </Step>
+
+  <Step title="Docker & Docker Compose (Recommended)">
+    Docker simplifies the setup process by containerizing all services.
+
+    ```bash
+    # Verify Docker installation
+    docker --version
+    docker compose version
+    ```
+  </Step>
+</Steps>
+
+## Installation Options
+
+Fluxora can be installed using Docker (recommended) or manually. Choose the method that best fits your environment.
+
+### Option 1: Docker Installation (Recommended)
+
+The fastest way to get Fluxora running is with Docker Compose:
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/fluxora.git
+cd fluxora
+
+# Build and start all services
+docker compose up -d
+```
+
+This will start:
+- 4 PostgreSQL databases (Cliente, Usuario, Entrega, Inventario)
+- Eureka Discovery Server (port 8761)
+- API Gateway (port 8080)
+- 4 microservices (Cliente: 8083, Usuario: 8081, Entrega: 8084, Inventario: 8082)
+- Next.js Frontend (port 3000)
+
+<Note>
+  First-time setup may take 5-10 minutes as Docker builds all images and downloads dependencies.
+</Note>
+
+### Option 2: Manual Installation
+
+For development or custom setups, install each component manually.
+
+<Steps>
+  <Step title="Setup PostgreSQL Databases">
+    Create four databases for the microservices:
+
+    ```sql
+    CREATE DATABASE cliente_db;
+    CREATE DATABASE usuario_db;
+    CREATE DATABASE entrega_db;
+    CREATE DATABASE inventario_db;
+    
+    -- Create user with permissions
+    CREATE USER fluxora WITH PASSWORD 'fluxora123';
+    GRANT ALL PRIVILEGES ON DATABASE cliente_db TO fluxora;
+    GRANT ALL PRIVILEGES ON DATABASE usuario_db TO fluxora;
+    GRANT ALL PRIVILEGES ON DATABASE entrega_db TO fluxora;
+    GRANT ALL PRIVILEGES ON DATABASE inventario_db TO fluxora;
+    ```
+  </Step>
+
+  <Step title="Build Microservices">
+    Build each Spring Boot microservice using Maven:
+
+    ```bash
+    # Build Eureka Server
+    cd Microservicios/microservice-eureka
+    mvn clean package -DskipTests
+
+    # Build API Gateway
+    cd ../microservice-gateway
+    mvn clean package -DskipTests
+
+    # Build Usuario Service
+    cd ../microservice-usuario
+    mvn clean package -DskipTests
+
+    # Repeat for other services (cliente, entrega, inventario)
+    ```
+  </Step>
+
+  <Step title="Install Frontend Dependencies">
+    Install the Next.js frontend dependencies:
+
+    ```bash
+    cd frontend-fluxora
+    npm install
+    ```
+
+    The frontend uses the following key dependencies:
+    - **Next.js 15.4.5** - React framework
+    - **React 19.1.0** - UI library
+    - **Chart.js** - Data visualization
+    - **Leaflet** - Interactive maps
+    - **Tailwind CSS 4** - Styling
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create `.env` files for each microservice. See the [Configuration](/getting-started/configuration) page for detailed environment variable setup.
+  </Step>
+
+  <Step title="Start Services">
+    Start services in the following order:
+
+    ```bash
+    # 1. Start Eureka Server
+    cd Microservicios/microservice-eureka
+    java -jar target/microservice-eureka-0.0.1-SNAPSHOT.jar
+
+    # 2. Start microservices (in separate terminals)
+    cd ../microservice-usuario
+    java -jar target/microservice-usuario-0.0.1-SNAPSHOT.jar
+
+    # 3. Start API Gateway
+    cd ../microservice-gateway
+    java -jar target/microservice-gateway-0.0.1-SNAPSHOT.jar
+
+    # 4. Start Frontend
+    cd ../../frontend-fluxora
+    npm run dev
+    ```
+  </Step>
+</Steps>
+
+## Verify Installation
+
+After installation, verify that all services are running:
+
+<Accordion title="Check Service Health">
+  ```bash
+  # Eureka Dashboard
+  curl http://localhost:8761
+  
+  # API Gateway
+  curl http://localhost:8080/actuator/health
+  
+  # Usuario Service
+  curl http://localhost:8081/api/usuarios/actuator/health
+  
+  # Frontend
+  curl http://localhost:3000
+  ```
+
+  All services should return successful responses.
+</Accordion>
+
+<Accordion title="View Eureka Dashboard">
+  Open your browser and navigate to:
+  
+  ```
+  http://localhost:8761
+  ```
+  
+  You should see all microservices registered:
+  - microservice-usuario
+  - microservice-cliente
+  - microservice-entrega
+  - microservice-inventario
+  - microservice-gateway
+</Accordion>
+
+## Development Tools
+
+For local development, you can use Docker Compose with hot-reload:
+
+```bash
+# Use the development override
+docker compose -f docker-compose.yml -f docker-compose.override.yml up
+```
+
+This enables:
+- Volume mounting for live code changes
+- Hot reload for the Next.js frontend
+- Development mode with detailed logging
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/getting-started/configuration">
+    Configure environment variables and application properties
+  </Card>
+  
+  <Card title="Docker Setup" icon="docker" href="/getting-started/docker-setup">
+    Detailed Docker Compose configuration and troubleshooting
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/getting-started/authentication">
+    Set up JWT authentication and role-based access control
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the Fluxora API endpoints
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Production Deployment**: For production environments, use proper secrets management, secure database passwords, and follow the [Security Best Practices]() guide.
+</Warning>

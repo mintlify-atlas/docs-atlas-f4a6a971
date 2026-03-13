@@ -1,0 +1,440 @@
+---
+title: "State Management"
+description: "State management patterns and data flow in Fluxora"
+---
+
+# State Management
+
+Fluxora uses React hooks and localStorage for state management, keeping the approach simple and effective without additional state management libraries.
+
+## State Management Approach
+
+Fluxora follows these principles:
+
+<CardGroup cols={2}>
+  <Card title="Local First" icon="house">
+    Keep state as local as possible to components
+  </Card>
+  <Card title="Lift When Needed" icon="arrow-up">
+    Lift state only when multiple components need it
+  </Card>
+  <Card title="Hooks" icon="fish">
+    Use React hooks for state and side effects
+  </Card>
+  <Card title="No Global Store" icon="ban">
+    No Redux or similar - keeps it simple
+  </Card>
+</CardGroup>
+
+## Component State
+
+### useState Hook
+
+Basic component state:
+
+```typescript
+import { useState } from 'react';
+
+const ClientForm = () => {
+  const [formData, setFormData] = useState({
+    nombre: '',
+    direccion: '',
+    telefono: ''
+  });
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+  
+  const handleSubmit = async () => {
+    await createClient(formData);
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="nombre" value={formData.nombre} onChange={handleChange} />
+      <input name="direccion" value={formData.direccion} onChange={handleChange} />
+      <input name="telefono" value={formData.telefono} onChange={handleChange} />
+      <button type="submit">Save</button>
+    </form>
+  );
+};
+```
+
+### Complex State
+
+Managing arrays and objects:
+
+```typescript
+const ProductList = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    fetchProducts()
+      .then(setProducts)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+  
+  if (loading) return <Loading />;
+  if (error) return <Error message={error} />;
+  
+  return (
+    <div>
+      {products.map(product => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+};
+```
+
+## Authentication State
+
+### localStorage for Token Storage
+
+From `app/page.tsx`:
+
+```typescript
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE}/api/usuarios/auth/login`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }
+  );
+  
+  const data = await res.json();
+  
+  // Store token in localStorage
+  localStorage.setItem(
+    "auth_token",
+    `${data.tokenType} ${data.accessToken}`
+  );
+  
+  // Decode and redirect
+  const payload = JSON.parse(atob(data.accessToken.split(".")[1]));
+  
+  if (payload.role === "DRIVER") {
+    window.location.href = "/driver";
+  } else if (payload.role === "PRODUCER") {
+    window.location.href = "/dashboard/inventario";
+  } else {
+    window.location.href = "/dashboard";
+  }
+};
+```
+
+### Reading Auth Token
+
+Utility function:
+
+```typescript
+export const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('auth_token');
+};
+
+export const getUserRole = (): string | null => {
+  const token = getAuthToken();
+  if (!token) return null;
+  
+  try {
+    const payload = JSON.parse(atob(token.split(' ')[1].split('.')[1]));
+    return payload.role;
+  } catch {
+    return null;
+  }
+};
+```
+
+## Custom Hooks
+
+### useAuth Hook
+
+Reusable authentication logic:
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export const useAuth = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      const payload = JSON.parse(atob(token.split(' ')[1].split('.')[1]));
+      setUser({
+        email: payload.email,
+        role: payload.role,
+      });
+    }
+    setLoading(false);
+  }, []);
+  
+  const logout = () => {
+    localStorage.removeItem('auth_token');
+    window.location.href = '/';
+  };
+  
+  return { user, loading, logout };
+};
+```
+
+Usage:
+
+```typescript
+const Dashboard = () => {
+  const { user, loading, logout } = useAuth();
+  
+  if (loading) return <Loading />;
+  if (!user) return <Redirect to="/" />;
+  
+  return (
+    <div>
+      <h1>Welcome, {user.email}</h1>
+      <button onClick={logout}>Logout</button>
+    </div>
+  );
+};
+```
+
+### useFetch Hook
+
+Reusable data fetching:
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export const useFetch = <T,>(url: string) => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const token = getAuthToken();
+    
+    fetch(url, {
+      headers: {
+        'Authorization': token || '',
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(res => res.json())
+      .then(setData)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [url]);
+  
+  return { data, loading, error };
+};
+```
+
+Usage:
+
+```typescript
+const ProductList = () => {
+  const { data: products, loading, error } = useFetch<Product[]>(
+    `${process.env.NEXT_PUBLIC_API_BASE}/api/inventario/productos`
+  );
+  
+  if (loading) return <Loading />;
+  if (error) return <Error message={error} />;
+  
+  return (
+    <div>
+      {products?.map(product => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+};
+```
+
+## API Service Layer
+
+Centralized API calls in `src/services/`:
+
+```typescript
+// src/services/clienteService.ts
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
+
+export const clienteService = {
+  getAll: async () => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_BASE}/api/clientes`, {
+      headers: {
+        'Authorization': token || '',
+      },
+    });
+    return res.json();
+  },
+  
+  create: async (cliente: CreateClienteRequest) => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_BASE}/api/clientes`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cliente),
+    });
+    return res.json();
+  },
+  
+  update: async (id: number, cliente: UpdateClienteRequest) => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_BASE}/api/clientes/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': token || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cliente),
+    });
+    return res.json();
+  },
+  
+  delete: async (id: number) => {
+    const token = getAuthToken();
+    await fetch(`${API_BASE}/api/clientes/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': token || '',
+      },
+    });
+  },
+};
+```
+
+## Side Effects with useEffect
+
+### Data Fetching
+
+```typescript
+const ClientDetail = ({ id }: { id: number }) => {
+  const [client, setClient] = useState(null);
+  
+  useEffect(() => {
+    clienteService.getById(id).then(setClient);
+  }, [id]);
+  
+  if (!client) return <Loading />;
+  
+  return <ClientInfo client={client} />;
+};
+```
+
+### Cleanup
+
+```typescript
+const Timer = () => {
+  const [count, setCount] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCount(c => c + 1);
+    }, 1000);
+    
+    // Cleanup function
+    return () => clearInterval(interval);
+  }, []);
+  
+  return <div>{count}</div>;
+};
+```
+
+## Form State Management
+
+### Controlled Components
+
+```typescript
+const ProductForm = () => {
+  const [formData, setFormData] = useState({
+    nombre: '',
+    tipo: 'CORRIENTE',
+    precioVenta: 0,
+  });
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await productoService.create(formData);
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        name="nombre"
+        value={formData.nombre}
+        onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+      />
+      <select
+        name="tipo"
+        value={formData.tipo}
+        onChange={e => setFormData({ ...formData, tipo: e.target.value })}
+      >
+        <option value="CORRIENTE">Corriente</option>
+        <option value="ESPECIAL">Especial</option>
+      </select>
+      <input
+        type="number"
+        name="precioVenta"
+        value={formData.precioVenta}
+        onChange={e => setFormData({ ...formData, precioVenta: +e.target.value })}
+      />
+      <button type="submit">Save</button>
+    </form>
+  );
+};
+```
+
+## Best Practices
+
+<Accordion title="State Location">
+  - Keep state as close to where it's used as possible
+  - Lift state only when multiple components need it
+  - Don't store derived data in state - calculate it
+  - Use refs for values that don't trigger re-renders
+</Accordion>
+
+<Accordion title="Performance">
+  - Memoize expensive calculations with useMemo
+  - Memoize callback functions with useCallback
+  - Split large components to avoid unnecessary re-renders
+  - Use keys properly in lists
+</Accordion>
+
+<Accordion title="Data Fetching">
+  - Centralize API calls in service layer
+  - Handle loading and error states
+  - Clean up async operations in useEffect
+  - Consider caching for frequently accessed data
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Components" icon="cube" href="/development/components">
+    Build stateful components
+  </Card>
+  <Card title="Routing" icon="route" href="/development/routing">
+    Navigate between states
+  </Card>
+  <Card title="API Integration" icon="plug" href="/api/overview">
+    Connect to backend
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Test state logic
+  </Card>
+</CardGroup>

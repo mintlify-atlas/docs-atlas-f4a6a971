@@ -1,0 +1,633 @@
+---
+title: 'Authentication'
+description: 'JWT-based authentication and role-based access control in Fluxora'
+icon: 'lock'
+---
+
+## Overview
+
+Fluxora uses **JWT (JSON Web Token)** authentication to secure all API endpoints. The authentication system provides:
+
+- Stateless authentication using JWT tokens
+- Role-based access control (RBAC) with three roles: Admin, User, and Driver
+- Token-based authorization across all microservices
+- Secure password encoding with BCrypt
+
+## Authentication Flow
+
+The authentication flow in Fluxora follows this sequence:
+
+<Steps>
+  <Step title="User Login">
+    Client sends email and password to the login endpoint.
+  </Step>
+
+  <Step title="Credential Validation">
+    Usuario service validates credentials against the database.
+  </Step>
+
+  <Step title="Token Generation">
+    Upon successful authentication, a JWT token is generated containing user ID, email, and role.
+  </Step>
+
+  <Step title="Token Usage">
+    Client includes the JWT token in the `Authorization` header for subsequent requests.
+  </Step>
+
+  <Step title="Token Validation">
+    Each microservice validates the JWT token using the shared secret key.
+  </Step>
+</Steps>
+
+## Login Endpoint
+
+### Request
+
+Authenticate a user and receive a JWT token:
+
+```http
+POST http://localhost:8080/api/usuarios/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+### Response
+
+Successful authentication returns a JWT token:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzE2MjM5MDIyLCJleHAiOjE3MTYyNDI2MjJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+  "tokenType": "Bearer"
+}
+```
+
+<Note>
+  The token expires after the duration specified in `JWT_EXP` (default: 60 minutes).
+</Note>
+
+### Error Responses
+
+<CodeGroup>
+```json 401 Unauthorized
+{
+  "error": "Credenciales inválidas"
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Email and password are required"
+}
+```
+</CodeGroup>
+
+## Using JWT Tokens
+
+Include the JWT token in the `Authorization` header for all authenticated requests:
+
+```http
+GET http://localhost:8080/api/usuarios/usuarios
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+<Warning>
+  Always include the `Bearer` prefix before the token. Requests without this prefix will be rejected.
+</Warning>
+
+## JWT Token Structure
+
+Fluxora JWT tokens contain the following claims:
+
+```json
+{
+  "sub": "1",                          // User ID
+  "email": "user@example.com",         // User email
+  "role": "ADMIN",                     // User role
+  "iat": 1716239022,                   // Issued at (timestamp)
+  "exp": 1716242622                    // Expiration (timestamp)
+}
+```
+
+### Decoding Tokens
+
+You can decode JWT tokens at [jwt.io](https://jwt.io) or programmatically:
+
+```javascript
+// Decode JWT in JavaScript
+const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+const payload = JSON.parse(atob(token.split('.')[1]));
+
+console.log(payload.email);  // user@example.com
+console.log(payload.role);   // ADMIN
+```
+
+## Role-Based Access Control (RBAC)
+
+Fluxora implements three user roles:
+
+<CardGroup cols={3}>
+  <Card title="ADMIN" icon="crown">
+    Full system access with permissions to manage users, inventory, clients, and deliveries.
+  </Card>
+  
+  <Card title="USER" icon="user">
+    Standard user with access to basic operations and personal data.
+  </Card>
+  
+  <Card title="DRIVER" icon="truck">
+    Delivery personnel with access to delivery management and route information.
+  </Card>
+</CardGroup>
+
+### Role Enforcement
+
+Roles are extracted from the JWT token and used to authorize requests. The `JwtAuthenticationFilter` extracts the role and adds it to the Spring Security context:
+
+```java
+// From JwtAuthenticationFilter.java
+String email = claims.get("email", String.class);
+String role = claims.get("role", String.class);
+
+var auth = new UsernamePasswordAuthenticationToken(
+    email, 
+    null,
+    List.of(new SimpleGrantedAuthority("ROLE_" + role))
+);
+```
+
+<Note>
+  Spring Security automatically prefixes roles with `ROLE_`, so a user with role `ADMIN` becomes `ROLE_ADMIN`.
+</Note>
+
+## Security Configuration
+
+Fluxora uses Spring Security to protect endpoints. Here's the security configuration from the Usuario service:
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) 
+            throws Exception {
+        return http
+            .csrf(csrf -> csrf.disable())
+            .cors(Customizer.withDefaults())
+            .sessionManagement(s -> 
+                s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/usuarios").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/usuarios/*").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/usuarios/*").authenticated()
+                .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((req, res, e) -> 
+                    res.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+                )
+            )
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .build();
+    }
+}
+```
+
+### Key Configuration Points
+
+<Accordion title="Stateless Sessions">
+  ```java
+  .sessionManagement(s -> 
+      s.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+  )
+  ```
+  
+  No server-side sessions are created. All authentication state is in the JWT token.
+</Accordion>
+
+<Accordion title="Public Endpoints">
+  ```java
+  .requestMatchers("/auth/login").permitAll()
+  ```
+  
+  The login endpoint is accessible without authentication.
+</Accordion>
+
+<Accordion title="Protected Endpoints">
+  ```java
+  .requestMatchers(HttpMethod.POST, "/usuarios").authenticated()
+  .requestMatchers(HttpMethod.DELETE, "/usuarios/*").authenticated()
+  .anyRequest().authenticated()
+  ```
+  
+  All other endpoints require a valid JWT token.
+</Accordion>
+
+<Accordion title="JWT Filter">
+  ```java
+  .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+  ```
+  
+  The JWT authentication filter runs before Spring Security's default authentication.
+</Accordion>
+
+## JWT Service Implementation
+
+The `JwtService` handles token generation and validation:
+
+```java
+@Service
+public class JwtService {
+    @Value("${security.jwt.secret}")
+    private String jwtSecret;
+
+    @Value("${security.jwt.expiration-minutes}")
+    private long expirationMinutes;
+
+    public String generateToken(Long userId, String email, String role) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+            .setSubject(String.valueOf(userId))
+            .setIssuedAt(Date.from(now))
+            .setExpiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
+            .claim("email", email)
+            .claim("role", role)
+            .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret)))
+            .compact();
+    }
+
+    public Claims parse(String token) {
+        return Jwts.parserBuilder()
+            .setSigningKey(Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret)))
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
+    }
+}
+```
+
+### Token Generation
+
+Tokens are generated during login:
+
+```java
+@Service
+public class AuthService {
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+
+    public LoginResponse login(LoginRequest req) {
+        var user = usuarioRepository.findByEmail(req.getEmail())
+            .orElseThrow(() -> 
+                new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas")
+            );
+
+        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas");
+        }
+
+        String token = jwtService.generateToken(
+            user.getId(), 
+            user.getEmail(), 
+            user.getRol().getRol()
+        );
+        
+        return new LoginResponse(token, "Bearer");
+    }
+}
+```
+
+## JWT Authentication Filter
+
+The `JwtAuthenticationFilter` intercepts all requests and validates JWT tokens:
+
+```java
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request, 
+            HttpServletResponse response, 
+            FilterChain chain
+    ) throws ServletException, IOException {
+
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String token = header.substring(7).trim();
+
+        try {
+            var claims = jwtService.parse(token);
+            String email = claims.get("email", String.class);
+            String role = claims.get("role", String.class);
+
+            var auth = new UsernamePasswordAuthenticationToken(
+                email, 
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_" + role))
+            );
+            
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            
+            chain.doFilter(request, response);
+        } catch (ExpiredJwtException ex) {
+            SecurityContextHolder.clearContext();
+            unauthorized(response, "Token expirado");
+        } catch (JwtException | IllegalArgumentException ex) {
+            SecurityContextHolder.clearContext();
+            unauthorized(response, "Token inválido");
+        }
+    }
+
+    private void unauthorized(HttpServletResponse response, String message) 
+            throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"error\": \"" + message + "\"}");
+    }
+}
+```
+
+### Filter Workflow
+
+<Steps>
+  <Step title="Extract Token">
+    Extract the JWT token from the `Authorization: Bearer <token>` header.
+  </Step>
+
+  <Step title="Validate Token">
+    Parse and validate the token signature using the shared secret key.
+  </Step>
+
+  <Step title="Extract Claims">
+    Extract user information (email, role) from the token claims.
+  </Step>
+
+  <Step title="Set Authentication">
+    Create a Spring Security authentication object and set it in the security context.
+  </Step>
+
+  <Step title="Continue Filter Chain">
+    Pass the request to the next filter or controller.
+  </Step>
+</Steps>
+
+## Password Encoding
+
+Fluxora uses Spring Security's `PasswordEncoder` for secure password hashing:
+
+```java
+@Bean
+PasswordEncoder passwordEncoder() {
+    // Uses delegating encoder supporting {bcrypt}, {noop}, etc.
+    return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+}
+```
+
+<Note>
+  In production, use `BCryptPasswordEncoder` for all passwords. The delegating encoder supports `{noop}` prefix for plain text passwords during development only.
+</Note>
+
+### Password Format
+
+Passwords in the database should be prefixed with the encoding algorithm:
+
+```
+{bcrypt}$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+{noop}password123  // Plain text (development only)
+```
+
+## Cross-Service Authentication
+
+All microservices that require authentication must:
+
+1. **Share the same JWT secret** in their `.env` files
+2. **Implement the JWT filter** to validate tokens
+3. **Use the same token format** and claims
+
+### Configuration Consistency
+
+Ensure these values match across all services:
+
+```bash
+# Must be identical in all microservices
+JWT_SECRET=YourBase64EncodedSecretKeyHere/MustBeLongEnoughForHS256Algorithm==
+JWT_EXP=60
+```
+
+<Warning>
+  If JWT secrets don't match, tokens generated by one service will fail validation in another service.
+</Warning>
+
+## Frontend Integration
+
+### Login Example
+
+```typescript
+// Login function
+async function login(email: string, password: string) {
+  const response = await fetch('http://localhost:8080/api/usuarios/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Login failed');
+  }
+
+  const data = await response.json();
+  
+  // Store token in localStorage or secure cookie
+  localStorage.setItem('accessToken', data.accessToken);
+  
+  return data;
+}
+```
+
+### Authenticated Requests
+
+```typescript
+// Make authenticated request
+async function fetchUsers() {
+  const token = localStorage.getItem('accessToken');
+  
+  const response = await fetch('http://localhost:8080/api/usuarios/usuarios', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (response.status === 401) {
+    // Token expired or invalid - redirect to login
+    window.location.href = '/login';
+    return;
+  }
+
+  return response.json();
+}
+```
+
+### Token Refresh Strategy
+
+Since tokens expire after `JWT_EXP` minutes, implement a refresh strategy:
+
+```typescript
+// Check token expiration
+function isTokenExpired(token: string): boolean {
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  const exp = payload.exp * 1000; // Convert to milliseconds
+  return Date.now() >= exp;
+}
+
+// Auto-refresh before expiration
+function setupTokenRefresh() {
+  const token = localStorage.getItem('accessToken');
+  if (!token) return;
+
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  const exp = payload.exp * 1000;
+  const timeUntilExpiry = exp - Date.now();
+  
+  // Refresh 5 minutes before expiration
+  const refreshTime = timeUntilExpiry - (5 * 60 * 1000);
+  
+  if (refreshTime > 0) {
+    setTimeout(() => {
+      // Re-login or implement refresh token endpoint
+      window.location.href = '/login';
+    }, refreshTime);
+  }
+}
+```
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Use HTTPS in Production">
+    Always transmit JWT tokens over HTTPS to prevent token interception:
+    ```nginx
+    server {
+        listen 443 ssl;
+        ssl_certificate /path/to/cert.pem;
+        ssl_certificate_key /path/to/key.pem;
+    }
+    ```
+  </Step>
+
+  <Step title="Secure JWT Secret">
+    Generate a strong, random secret and store it securely:
+    ```bash
+    # Generate 64-byte secret
+    openssl rand -base64 64
+    
+    # Store in environment-specific .env file
+    # Never commit to version control
+    ```
+  </Step>
+
+  <Step title="Set Appropriate Expiration">
+    Balance security and user experience:
+    - **Development**: 60 minutes
+    - **Production**: 15-30 minutes with refresh token
+  </Step>
+
+  <Step title="Implement Token Revocation">
+    For sensitive operations, implement a token blacklist or refresh token mechanism.
+  </Step>
+
+  <Step title="Validate All Claims">
+    Always validate token expiration, issuer, and required claims:
+    ```java
+    if (claims.getExpiration().before(new Date())) {
+        throw new ExpiredJwtException(...);
+    }
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting Authentication
+
+<Accordion title="401 Unauthorized on Valid Token">
+  **Causes:**
+  - JWT secret mismatch between services
+  - Token expired
+  - Missing `Bearer` prefix
+  
+  **Solutions:**
+  ```bash
+  # Verify JWT_SECRET matches in all services
+  grep JWT_SECRET Microservicios/*/​.env
+  
+  # Check token expiration
+  echo $TOKEN | cut -d. -f2 | base64 -d | jq .exp
+  
+  # Verify Bearer prefix
+  curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/usuarios
+  ```
+</Accordion>
+
+<Accordion title="Login Returns 401">
+  **Causes:**
+  - Incorrect email or password
+  - User doesn't exist in database
+  - Password encoding mismatch
+  
+  **Solutions:**
+  ```bash
+  # Check if user exists
+  docker compose exec db-usuario psql -U fluxora -d usuario_db -c "SELECT * FROM usuario WHERE email='user@example.com';"
+  
+  # Verify password encoding
+  # Passwords should start with {bcrypt} or {noop}
+  ```
+</Accordion>
+
+<Accordion title="Token Signature Verification Failed">
+  **Cause:** JWT secret doesn't match between token generation and validation.
+  
+  **Solution:**
+  ```bash
+  # Ensure JWT_SECRET is identical in all services
+  # Restart services after changing JWT_SECRET
+  docker compose restart usuario-service cliente-service
+  ```
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Management" icon="users" href="/api/endpoints/usuarios">
+    Manage users and roles through the Usuario API
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore all authenticated endpoints
+  </Card>
+  
+  <Card title="Security Best Practices" icon="shield" href="">
+    Harden your Fluxora deployment
+  </Card>
+  
+  <Card title="Frontend Integration" icon="react" href="">
+    Implement authentication in your frontend
+  </Card>
+</CardGroup>

@@ -1,0 +1,306 @@
+---
+title: "Components"
+description: "Fluxora's component library and architecture"
+---
+
+# Components
+
+Fluxora's frontend uses a well-organized component architecture with reusable UI components and feature-specific modules.
+
+## Component Structure
+
+```
+src/components/
+├── admin/           # Admin-specific components
+├── auth/            # Authentication components
+├── clientes/        # Client management components
+├── driver/          # Driver dashboard components
+├── inventario/      # Inventory components
+├── layout/          # Layout components (nav, sidebar)
+├── reportes/        # Reporting components
+└── ui/              # Reusable UI components
+```
+
+## UI Components
+
+Reusable base components in `components/ui/`:
+
+### Common UI Elements
+
+- **Buttons**: Primary, secondary, danger variants
+- **Forms**: Input fields, selects, textareas
+- **Cards**: Data display containers
+- **Tables**: Data tables with sorting
+- **Modals**: Dialog boxes for actions
+- **Alerts**: Success, error, warning messages
+- **Loading**: Spinners and skeleton loaders
+
+## Feature Components
+
+### Admin Components
+
+Admin dashboard functionality:
+- User management tables
+- System statistics cards
+- Configuration forms
+- Activity logs
+
+### Client Components
+
+Client management:
+- Client list table
+- Client form (create/edit)
+- Client detail view
+- GPS coordinate picker
+- Route assignment selector
+
+### Inventory Components
+
+Inventory management:
+- Product catalog
+- Material stock tables
+- Recipe builder
+- Batch tracking lists
+- Stock alerts
+- Purchase order forms
+
+### Driver Components
+
+Driver-specific UI:
+- Interactive map with Leaflet
+- Delivery list view
+- Client information cards
+- Delivery form
+- Route progress tracker
+
+### Reports Components
+
+Reporting and analytics:
+- Chart.js visualizations
+- Filter controls
+- Export buttons (PDF, Excel)
+- Date range selectors
+- Summary statistics cards
+
+## Layout Components
+
+### Navigation
+
+Main navigation structure:
+
+```typescript
+// Simplified navigation component
+const Navigation = () => {
+  const role = getUserRole();
+  
+  return (
+    <nav>
+      {role === 'ADMIN' && <AdminNav />}
+      {role === 'PRODUCER' && <ProducerNav />}
+      {role === 'DRIVER' && <DriverNav />}
+    </nav>
+  );
+};
+```
+
+### Sidebar
+
+Responsive sidebar for desktop:
+- Collapsible navigation
+- Role-based menu items
+- Active route highlighting
+
+### Header
+
+Top header bar:
+- User profile dropdown
+- Notifications
+- Logout button
+
+## Component Patterns
+
+### Container/Presentational Pattern
+
+Separation of concerns:
+
+```typescript
+// Container (smart component)
+const ClientListContainer = () => {
+  const [clients, setClients] = useState([]);
+  
+  useEffect(() => {
+    fetchClients().then(setClients);
+  }, []);
+  
+  return <ClientList clients={clients} />;
+};
+
+// Presentational (dumb component)
+const ClientList = ({ clients }) => {
+  return (
+    <table>
+      {clients.map(client => <ClientRow key={client.id} client={client} />)}
+    </table>
+  );
+};
+```
+
+### Composition
+
+Building complex UIs from simple components:
+
+```typescript
+<Card>
+  <CardHeader>
+    <CardTitle>Products</CardTitle>
+  </CardHeader>
+  <CardBody>
+    <ProductList />
+  </CardBody>
+</Card>
+```
+
+## Styling
+
+### Tailwind CSS
+
+Utility-first styling:
+
+```typescript
+<button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+  Save
+</button>
+```
+
+### Component Variants
+
+Using `clsx` and `tailwind-merge`:
+
+```typescript
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+const Button = ({ variant, children }) => {
+  return (
+    <button
+      className={twMerge(
+        clsx(
+          'px-4 py-2 rounded',
+          variant === 'primary' && 'bg-blue-500 text-white',
+          variant === 'danger' && 'bg-red-500 text-white'
+        )
+      )}
+    >
+      {children}
+    </button>
+  );
+};
+```
+
+## Data Visualization Components
+
+### Chart Components
+
+Using Chart.js:
+
+```typescript
+import { Bar, Line, Pie } from 'react-chartjs-2';
+
+const SalesChart = ({ data }) => {
+  return <Bar data={data} options={options} />;
+};
+```
+
+### Map Components
+
+Using Leaflet:
+
+```typescript
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+
+const DeliveryMap = ({ clients }) => {
+  return (
+    <MapContainer center={[51.505, -0.09]} zoom={13}>
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      {clients.map(client => (
+        <Marker key={client.id} position={[client.latitud, client.longitud]} />
+      ))}
+    </MapContainer>
+  );
+};
+```
+
+## Form Components
+
+### Controlled Components
+
+React-controlled form inputs:
+
+```typescript
+const ClientForm = () => {
+  const [formData, setFormData] = useState({
+    nombre: '',
+    direccion: '',
+    telefono: ''
+  });
+  
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+  
+  return (
+    <form>
+      <input name="nombre" value={formData.nombre} onChange={handleChange} />
+      <input name="direccion" value={formData.direccion} onChange={handleChange} />
+      <input name="telefono" value={formData.telefono} onChange={handleChange} />
+    </form>
+  );
+};
+```
+
+## Best Practices
+
+<Accordion title="Component Organization">
+  - One component per file
+  - Group related components in directories
+  - Use index.ts for easier imports
+  - Keep components small and focused
+</Accordion>
+
+<Accordion title="Props">
+  - Use TypeScript interfaces for props
+  - Document complex props with JSDoc
+  - Destructure props in function signature
+  - Provide default values when appropriate
+</Accordion>
+
+<Accordion title="State Management">
+  - Keep state as local as possible
+  - Lift state only when necessary
+  - Use custom hooks for reusable logic
+  - Avoid prop drilling (use composition)
+</Accordion>
+
+<Accordion title="Performance">
+  - Use React.memo for expensive components
+  - Memoize callbacks with useCallback
+  - Lazy load heavy components
+  - Optimize images with Next.js Image
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routing" icon="route" href="/development/routing">
+    Learn about Next.js routing
+  </Card>
+  <Card title="State Management" icon="database" href="/development/state-management">
+    Understand state patterns
+  </Card>
+  <Card title="Code Style" icon="code" href="/development/code-style">
+    Follow coding conventions
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/testing">
+    Write component tests
+  </Card>
+</CardGroup>

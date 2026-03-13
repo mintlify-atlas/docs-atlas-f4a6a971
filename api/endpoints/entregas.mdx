@@ -1,0 +1,1160 @@
+---
+title: 'Entregas API'
+description: 'Endpoints for delivery management, routes, and distribution'
+---
+
+## Delivery Routes
+
+### Get Active Routes
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/rutas-activas \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/rutas-activas`
+
+Retrieves all active routes with their assigned customers.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Response
+
+Returns an array of route objects with customer details.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Ruta Norte",
+    "driverId": 5,
+    "clientes": [
+      {
+        "id": 1,
+        "nombreNegocio": "Panadería El Sol",
+        "direccion": "Av. Principal 123"
+      }
+    ]
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Routes retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Routes by Date
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/rutas-por-fecha/2024-03-15 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/rutas-por-fecha/{fecha}`
+
+Retrieves scheduled routes for a specific date.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="fecha" type="string" required>
+  Date in YYYY-MM-DD format
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Routes retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Register Delivery
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/entrega/registrar \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id_pedido": 123,
+    "id_cliente": 1,
+    "tipo": "VENTA",
+    "productos": [
+      {
+        "id_producto": 1,
+        "cantidad": 50
+      }
+    ]
+  }'
+```
+</RequestExample>
+
+**POST** `/entrega/registrar`
+
+Registers a delivery to a customer.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="id_pedido" type="long" required>
+  Order/session ID (required for VENTA type)
+</ParamField>
+
+<ParamField body="id_cliente" type="long" required>
+  Customer ID
+</ParamField>
+
+<ParamField body="tipo" type="TipoMovimiento" default="VENTA">
+  Movement type: VENTA (sale), DEVOLUCION (return), PRESTAMO (loan)
+</ParamField>
+
+<ParamField body="productos" type="array" required>
+  Array of products delivered (required for VENTA)
+</ParamField>
+
+<Expandable title="productos object">
+  <ParamField body="id_producto" type="long" required>
+    Product ID
+  </ParamField>
+  <ParamField body="cantidad" type="double" required>
+    Quantity delivered
+  </ParamField>
+</Expandable>
+
+#### Response
+
+<ResponseExample>
+```json
+{
+  "message": "Entrega registrada exitosamente"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Delivery registered successfully
+- `400 Bad Request` - Invalid data or insufficient stock
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Technical error
+
+---
+
+### Get Customer Delivery History
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/cliente/1/historial \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/cliente/{id}/historial`
+
+Retrieves the delivery history for a specific customer.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id" type="long" required>
+  Customer ID
+</ParamField>
+
+#### Response
+
+Returns an array of RegistroEntrega objects.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "fecha": "2024-03-15T10:30:00",
+    "tipo": "VENTA",
+    "cantidad": 50,
+    "productoId": 1,
+    "clienteId": 1
+  }
+]
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - History retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Assign Driver to Route
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/entrega/asignar-driver \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id_ruta": 1,
+    "id_driver": 5
+  }'
+```
+</RequestExample>
+
+**POST** `/entrega/asignar-driver`
+
+Assigns a driver to a delivery route.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+<ParamField body="id_driver" type="long" required>
+  Driver user ID
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+"Driver asignado exitosamente"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Driver assigned successfully
+- `400 Bad Request` - Error assigning driver
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Create Route
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/entrega/crear-ruta \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Ruta Sur",
+    "descripcion": "Ruta zona sur de la ciudad",
+    "latitud": 19.4326,
+    "longitud": -99.1332
+  }'
+```
+</RequestExample>
+
+**POST** `/entrega/crear-ruta`
+
+Creates a new delivery route.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Request Body
+
+Accepts a Map with route details including name, description, and coordinates.
+
+#### Response
+
+<ResponseExample>
+```json
+"Ruta creada exitosamente"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Route created successfully
+- `400 Bad Request` - Error creating route
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Delete Route
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.fluxora.com/entrega/rutas/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**DELETE** `/entrega/rutas/{idRuta}`
+
+Deletes a delivery route.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="idRuta" type="long" required>
+  Route ID to delete
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+"Ruta eliminada exitosamente"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Route deleted successfully
+- `400 Bad Request` - Error deleting route
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+## Delivery Scheduling
+
+### Schedule Delivery
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/entrega/programar-entrega \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idRuta": 1,
+    "idCliente": 1,
+    "fechaProgramacion": "2024-03-20",
+    "productos": [
+      {
+        "id_producto": 1,
+        "cantidad": 100
+      }
+    ]
+  }'
+```
+</RequestExample>
+
+**POST** `/entrega/programar-entrega`
+
+Schedules a delivery for a specific customer on a route.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="idRuta" type="long" required>
+  Route ID
+</ParamField>
+
+<ParamField body="idCliente" type="long" required>
+  Customer ID
+</ParamField>
+
+<ParamField body="fechaProgramacion" type="LocalDate" required>
+  Scheduled date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="productos" type="array" required>
+  Array of products to deliver
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+"Entrega programada exitosamente"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Delivery scheduled successfully
+- `400 Bad Request` - Error scheduling delivery
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Scheduled Deliveries
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/programacion/1/2024-03-20 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/programacion/{idRuta}/{fecha}`
+
+Retrieves scheduled deliveries for a route on a specific date.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="idRuta" type="long" required>
+  Route ID
+</ParamField>
+
+<ParamField path="fecha" type="string" required>
+  Date in YYYY-MM-DD format
+</ParamField>
+
+#### Response
+
+Returns an array of ProgramacionEntrega objects.
+
+#### Status Codes
+
+- `200 OK` - Scheduled deliveries retrieved
+- `400 Bad Request` - Invalid parameters
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Update Customer Schedule
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/entrega/actualizar-programacion-cliente \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idRuta": 1,
+    "idCliente": 1,
+    "fecha": "2024-03-20",
+    "kgCorriente": 50.0,
+    "kgEspecial": 25.0
+  }'
+```
+</RequestExample>
+
+**POST** `/entrega/actualizar-programacion-cliente`
+
+Updates the scheduled delivery quantities for a customer.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="idRuta" type="long" required>
+  Route ID
+</ParamField>
+
+<ParamField body="idCliente" type="long" required>
+  Customer ID
+</ParamField>
+
+<ParamField body="fecha" type="string" required>
+  Date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="kgCorriente" type="double" required>
+  Kilograms of regular product
+</ParamField>
+
+<ParamField body="kgEspecial" type="double" required>
+  Kilograms of special product
+</ParamField>
+
+#### Status Codes
+
+- `200 OK` - Schedule updated successfully
+- `400 Bad Request` - Error updating schedule
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+## Orders and Sessions
+
+### Get Orders
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/pedidos \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/pedidos`
+
+Retrieves all delivery orders/sessions.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Response
+
+Returns an array of SesionReparto objects.
+
+#### Status Codes
+
+- `200 OK` - Orders retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Error retrieving orders
+
+---
+
+### Get Deliveries by Order ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/pedido/123 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/pedido/{idPedido}`
+
+Retrieves all deliveries for a specific order.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="idPedido" type="long" required>
+  Order/session ID
+</ParamField>
+
+#### Response
+
+Returns an array of RegistroEntrega objects.
+
+#### Status Codes
+
+- `200 OK` - Deliveries retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Error retrieving deliveries
+
+---
+
+## Reports and Analytics
+
+### Get Dashboard Statistics
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/estadisticas-dashboard \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/estadisticas-dashboard`
+
+Retrieves statistics for the delivery dashboard.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Response
+
+Returns a Map with various statistics.
+
+<ResponseExample>
+```json
+{
+  "totalRutas": 5,
+  "totalEntregas": 150,
+  "entregasHoy": 25,
+  "ventasTotales": 45000.50
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Statistics retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Error retrieving statistics
+
+---
+
+### Generate Delivery Report
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.fluxora.com/entrega/reporte-entregas?fechaInicio=2024-03-01&fechaFin=2024-03-31&idRuta=1" \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/reporte-entregas`
+
+Generates a delivery report for a date range.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Query Parameters
+
+<ParamField query="fechaInicio" type="string" required>
+  Start date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="fechaFin" type="string" required>
+  End date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="idRuta" type="long">
+  Optional route ID filter
+</ParamField>
+
+#### Response
+
+Returns a Map with report data.
+
+#### Status Codes
+
+- `200 OK` - Report generated successfully
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Error generating report
+
+---
+
+### Generate Sales Report
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.fluxora.com/entrega/reporte-ventas?fechaInicio=2024-03-01&fechaFin=2024-03-31" \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/reporte-ventas`
+
+Generates a sales report for a date range.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Query Parameters
+
+<ParamField query="fechaInicio" type="string" required>
+  Start date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="fechaFin" type="string" required>
+  End date (YYYY-MM-DD)
+</ParamField>
+
+#### Response
+
+Returns a Map with sales report data.
+
+#### Status Codes
+
+- `200 OK` - Report generated successfully
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Error generating report
+
+---
+
+### Get Production Plan
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/entrega/plan-produccion/2024-03-20 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/entrega/plan-produccion/{fecha}`
+
+Retrieves the production plan for a specific date based on scheduled deliveries.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="fecha" type="string" required>
+  Date in YYYY-MM-DD format
+</ParamField>
+
+#### Response
+
+Returns a Map with production planning data.
+
+#### Status Codes
+
+- `200 OK` - Production plan retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+- `500 Internal Server Error` - Error retrieving plan
+
+---
+
+## Route Management
+
+### Get All Routes
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/rutas \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/rutas`
+
+Retrieves all delivery routes in the system.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Response
+
+Returns an array of Ruta objects.
+
+#### Status Codes
+
+- `200 OK` - Routes retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Optimized Route (OR-Tools)
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/rutas/optimized-ortools/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/rutas/optimized-ortools/{id_ruta}`
+
+Calculates the optimized delivery route using OR-Tools algorithm.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+#### Response
+
+<ResponseField name="orderedClients" type="array">
+  Array of customers in optimized order
+</ResponseField>
+
+<ResponseField name="osrmRoute" type="string">
+  OSRM route polyline for map display
+</ResponseField>
+
+<ResponseField name="origen" type="object">
+  Origin coordinates (latitud, longitud)
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "orderedClients": [
+    {
+      "id": 1,
+      "nombreNegocio": "Panadería El Sol",
+      "latitud": 19.4326,
+      "longitud": -99.1332
+    }
+  ],
+  "osrmRoute": "polyline_string...",
+  "origen": {
+    "latitud": 19.4285,
+    "longitud": -99.1277
+  }
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Optimized route calculated
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Optimized Route for Date
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/rutas/optimized-ortools/1/2024-03-20 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/rutas/optimized-ortools/{id_ruta}/{fecha}`
+
+Calculates optimized route for customers with scheduled deliveries on a specific date.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+<ParamField path="fecha" type="string" required>
+  Date in YYYY-MM-DD format
+</ParamField>
+
+#### Response
+
+Same format as optimized route endpoint, but only includes customers with scheduled deliveries.
+
+#### Status Codes
+
+- `200 OK` - Optimized route calculated
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Route Customers
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/rutas/clientes/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/rutas/clientes/{id_ruta}`
+
+Retrieves all customers assigned to a route.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+#### Response
+
+Returns an array of ClienteDTO objects.
+
+#### Status Codes
+
+- `200 OK` - Customers retrieved successfully
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Assign Customer to Route
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/rutas/asignar-cliente \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id_ruta": 1,
+    "id_cliente": 5
+  }'
+```
+</RequestExample>
+
+**POST** `/rutas/asignar-cliente`
+
+Assigns a customer to a delivery route.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+<ParamField body="id_cliente" type="long" required>
+  Customer ID
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+"Cliente asignado correctamente a la ruta"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customer assigned successfully
+- `400 Bad Request` - Error assigning customer
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Reassign Customer to Route
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/rutas/reasignar-cliente \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id_ruta": 2,
+    "id_cliente": 5
+  }'
+```
+</RequestExample>
+
+**POST** `/rutas/reasignar-cliente`
+
+Reassigns a customer from their current route to a different route.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Request Body
+
+<ParamField body="id_ruta" type="long" required>
+  New route ID
+</ParamField>
+
+<ParamField body="id_cliente" type="long" required>
+  Customer ID to reassign
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+"Cliente reasignado correctamente a la ruta"
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Customer reassigned successfully
+- `400 Bad Request` - Error reassigning customer
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Start Route Session
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/rutas/iniciar/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**POST** `/rutas/iniciar/{id_ruta}`
+
+Starts a delivery session for a route.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+#### Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="id_pedido" type="long">
+  Created session/order ID
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "message": "Ruta iniciada correctamente",
+  "id_pedido": 456
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Route session started
+- `400 Bad Request` - Error starting route
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Finalize Route Session
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/rutas/finalizar/1 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**POST** `/rutas/finalizar/{id_ruta}`
+
+Finalizes a delivery session and generates a summary.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id_ruta" type="long" required>
+  Route ID
+</ParamField>
+
+#### Response
+
+Returns a summary Map with delivery statistics and a success message.
+
+<ResponseExample>
+```json
+{
+  "message": "Ruta finalizada correctamente",
+  "totalEntregas": 15,
+  "ventaTotal": 12500.00
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Route finalized successfully
+- `400 Bad Request` - Error finalizing route
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Get Route by Driver ID
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.fluxora.com/rutas/driver/5 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**GET** `/rutas/driver/{driverId}`
+
+Retrieves the route ID assigned to a specific driver.
+
+<Note>
+  Requires **ADMIN** or **DRIVER** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="driverId" type="long" required>
+  Driver user ID
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+{
+  "rutaId": 1
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Route found
+- `400 Bad Request` - No route found for driver
+- `403 Forbidden` - Insufficient permissions
+
+---
+
+### Mark Session as Paid
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.fluxora.com/rutas/marcar-pagado/123 \
+  -H "Authorization: Bearer {token}"
+```
+</RequestExample>
+
+**POST** `/rutas/marcar-pagado/{id_sesion}`
+
+Marks a delivery session as paid.
+
+<Note>
+  Requires **ADMIN** role authorization.
+</Note>
+
+#### Path Parameters
+
+<ParamField path="id_sesion" type="long" required>
+  Session ID
+</ParamField>
+
+#### Response
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "message": "Sesión marcada como pagada exitosamente"
+}
+```
+</ResponseExample>
+
+#### Status Codes
+
+- `200 OK` - Session marked as paid
+- `400 Bad Request` - Error marking session
+- `403 Forbidden` - Insufficient permissions

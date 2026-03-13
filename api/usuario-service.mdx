@@ -1,0 +1,120 @@
+---
+title: "Usuario Service"
+description: "User management and authentication microservice"
+---
+
+# Usuario Service
+
+The Usuario Service is responsible for user authentication and management in Fluxora. It handles user accounts, roles, and JWT token generation.
+
+## Overview
+
+<CardGroup cols={2}>
+  <Card title="Port" icon="network-wired">
+    8081
+  </Card>
+  <Card title="Database" icon="database">
+    usuario_db (PostgreSQL)
+  </Card>
+  <Card title="Spring Boot" icon="leaf">
+    3.5.4
+  </Card>
+  <Card title="Java" icon="mug-hot">
+    21
+  </Card>
+</CardGroup>
+
+## Responsibilities
+
+- User authentication with JWT tokens
+- User account management (CRUD operations)
+- Role-based access control
+- Password encryption with BCrypt
+- Token generation and validation
+
+## Entities
+
+### Usuario Entity
+
+The main user entity with the following fields:
+
+- `id` (Long): Primary key
+- `nombre` (String): User's full name
+- `email` (String): Unique email address
+- `password` (String): BCrypt hashed password
+- `rol` (Rol): User role (ADMIN, PRODUCER, DRIVER)
+- `createdAt` (LocalDateTime): Account creation timestamp
+- `updatedAt` (LocalDateTime): Last update timestamp
+
+### Rol Entity
+
+Defines user roles:
+- `ADMIN`: Full system access
+- `PRODUCER`: Inventory management access
+- `DRIVER`: Delivery management access
+
+## Controllers
+
+### AuthController
+
+Handles authentication:
+- `POST /api/usuarios/auth/login`: User login with JWT token generation
+- `POST /api/usuarios/auth/logout`: User logout
+
+### UsuarioController
+
+Manages user accounts:
+- `GET /usuarios`: List all users
+- `POST /usuarios`: Create new user
+- `GET /usuarios/{id}`: Get user by ID
+- `PUT /usuarios/{id}`: Update user
+- `DELETE /usuarios/{id}`: Delete user
+- `GET /usuarios?rol={rol}`: Filter users by role
+
+For detailed endpoint documentation, see [Usuario Endpoints](/api/endpoints/usuarios).
+
+## Database Schema
+
+The service uses PostgreSQL with two main tables:
+
+**usuarios table:**
+- id (BIGSERIAL PRIMARY KEY)
+- nombre (VARCHAR)
+- email (VARCHAR UNIQUE)
+- password (VARCHAR)
+- rol_id (BIGINT FK)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+
+**roles table:**
+- id (BIGSERIAL PRIMARY KEY)
+- nombre (VARCHAR)
+
+## Dependencies
+
+Key dependencies from pom.xml:
+- Spring Boot Starter Web
+- Spring Boot Starter Data JPA
+- Spring Boot Starter Security
+- Spring Cloud Eureka Client
+- JWT (jjwt) 0.11.5
+- PostgreSQL Driver
+- Lombok
+- MapStruct 1.6.3
+
+## Integration
+
+The service integrates with:
+- **Eureka Server**: Service registration and discovery
+- **API Gateway**: Routes requests from `/api/usuarios/**`
+- **PostgreSQL**: Persistent data storage
+
+## Security
+
+Implements comprehensive security:
+- BCrypt password hashing
+- JWT token-based authentication
+- Role-based authorization
+- Token expiration and validation
+
+For more details, see [Authentication](/api/authentication).

@@ -1,0 +1,646 @@
+---
+title: 'Driver Guide'
+description: 'Complete guide for drivers managing deliveries and routes in Fluxora'
+icon: 'truck-fast'
+---
+
+## Overview
+
+As a **Driver**, you are responsible for executing daily delivery routes, managing customer deliveries, and recording delivery transactions. Your interface is optimized for mobile use during route operations.
+
+<Tip>
+Drivers have focused access to delivery features and client information. The driver interface is designed for on-the-go use.
+</Tip>
+
+## Key Responsibilities
+
+Drivers manage:
+- Daily delivery route execution
+- Recording deliveries to clients
+- Managing product inventory on vehicle
+- Collecting payments
+- Handling returns and exchanges
+- Providing delivery summaries
+
+---
+
+## Getting Started
+
+<Steps>
+  <Step title="Login to the System">
+    Navigate to the Fluxora login page and enter your driver credentials. Upon successful authentication, you'll be redirected to your driver dashboard at `/driver`.
+  </Step>
+  
+  <Step title="Review Daily Route">
+    The driver homepage displays:
+    - Number of scheduled deliveries for today
+    - Your assigned route
+    - Start route button
+    - Welcome message
+  </Step>
+  
+  <Step title="Start Your Route">
+    Click "INICIAR RUTA" (Start Route) when you're ready to begin deliveries. This creates a delivery session and loads your optimized route.
+  </Step>
+</Steps>
+
+---
+
+## Understanding Your Route
+
+### Route Assignment
+
+Each driver is assigned to one delivery route by administrators:
+
+```bash
+Endpoint: GET /api/entregas/rutas/driver/{driverId}
+Permission: ADMIN, DRIVER
+```
+
+Your route includes:
+- Route name and identifier
+- List of assigned clients
+- Origin point (bakery location)
+- Delivery schedule
+
+### Route Optimization
+
+Fluxora automatically optimizes your route:
+
+<Card title="Smart Route Planning" icon="route">
+  - Uses OR-Tools algorithm for optimal ordering
+  - Minimizes total travel distance
+  - Considers only clients with scheduled deliveries
+  - Updates daily based on schedules
+  - Uses real map data via OSRM
+</Card>
+
+### Viewing Today's Deliveries
+
+Before starting, you can see:
+- Total number of delivery stops
+- Clients with scheduled deliveries
+- Products and quantities to deliver
+- Estimated route information
+
+---
+
+## Starting Your Route
+
+### Initial Setup
+
+<Steps>
+  <Step title="Load Your Vehicle">
+    Before starting the route:
+    - Load all products based on production plan
+    - Verify quantities of Corriente and Especial
+    - Ensure proper organization for easy access
+    - Confirm product freshness
+  </Step>
+  
+  <Step title="Launch the App">
+    Open Fluxora on your mobile device and log in
+  </Step>
+  
+  <Step title="Start Route Session">
+    Click "INICIAR RUTA" button. This:
+    - Creates a delivery session (pedido)
+    - Loads optimized client order
+    - Starts tracking your deliveries
+    - Records start time
+  </Step>
+</Steps>
+
+### The Route Interface
+
+Once started, you'll see two main tabs:
+
+<CardGroup cols={2}>
+  <Card title="Mi Ruta" icon="map">
+    Visual map showing:
+    - Your current location
+    - Client locations
+    - Optimized route path
+    - Next destination
+  </Card>
+  
+  <Card title="Entregas" icon="list">
+    Delivery list showing:
+    - All clients in order
+    - Delivery status
+    - Client addresses
+    - Quick access to record deliveries
+  </Card>
+</CardGroup>
+
+---
+
+## Recording Deliveries
+
+### Accessing Client Information
+
+For each stop:
+
+1. View client details:
+   - Client name and address
+   - Scheduled quantities (Corriente and Especial)
+   - Delivery history
+   - Route assignment
+
+```bash
+Endpoint: GET /api/clientes/cliente/{id}
+Permission: ADMIN, DRIVER
+```
+
+### Making a Delivery
+
+<Steps>
+  <Step title="Select Client">
+    From the "Entregas" tab, tap on the client you're visiting
+  </Step>
+  
+  <Step title="Review Scheduled Order">
+    The delivery form shows:
+    - Programmed quantities for today
+    - Product types (Corriente/Especial)
+    - Client information
+  </Step>
+  
+  <Step title="Record Actual Delivery">
+    Enter what was actually delivered:
+    - Adjust quantities if different from scheduled
+    - Select delivery type (Sale, Return, Exchange)
+    - Enter payment amount if collected
+    - Add notes if needed
+  </Step>
+  
+  <Step title="Submit Delivery">
+    Tap "Submit" or "Registrar Entrega" to save
+  </Step>
+</Steps>
+
+### Delivery Types
+
+Fluxora supports different transaction types:
+
+<Accordion title="VENTA (Sale)">
+  Standard product delivery with payment:
+  - Requires pedido ID (automatically set)
+  - Must include products and quantities
+  - Records payment amount
+  - Deducts from vehicle inventory
+</Accordion>
+
+<Accordion title="DEVOLUCION (Return)">
+  Client returning products:
+  - Products returned to vehicle
+  - May include credit or refund
+  - Adds back to inventory
+  - Documents reason for return
+</Accordion>
+
+<Accordion title="INTERCAMBIO (Exchange)">
+  Exchanging one product for another:
+  - Record what was returned
+  - Record what was given
+  - Net inventory adjustment
+  - Note exchange details
+</Accordion>
+
+### Recording the Transaction
+
+The system validates and records:
+
+```bash
+Endpoint: POST /api/entregas/entrega/registrar
+Permission: ADMIN, DRIVER
+```
+
+Required information:
+- Client ID
+- Pedido ID (session ID)
+- Delivery type
+- Products and quantities
+- Payment amount (for sales)
+
+### Stock Deduction
+
+When you record a sale:
+1. System verifies sufficient stock
+2. Deducts from oldest batches first (FIFO)
+3. Updates real-time inventory
+4. Confirms successful transaction
+
+<Warning>
+If stock is insufficient, the system will reject the delivery. Contact your administrator if this occurs.
+</Warning>
+
+---
+
+## Managing Deliveries
+
+### Viewing Delivery Progress
+
+The header shows:
+- Total pending deliveries
+- Number completed
+- Current client
+- Time elapsed
+
+### Skipping a Delivery
+
+If a client is unavailable:
+1. Note the skip reason
+2. Continue to next client
+3. Return later if possible
+4. Undelivered items remain in your inventory
+
+<Tip>
+You can return to skipped clients later. The list shows both pending and completed deliveries.
+</Tip>
+
+### Viewing Delivery History
+
+For any client, view past deliveries:
+
+```bash
+Endpoint: GET /api/entregas/entrega/cliente/{id}/historial
+Permission: ADMIN, DRIVER
+```
+
+History includes:
+- Delivery dates
+- Products and quantities
+- Payment amounts
+- Delivery types
+- Notes and comments
+
+---
+
+## Daily Workflow
+
+### Morning Routine
+
+1. **Before Leaving**:
+   - Check scheduled deliveries
+   - Verify production is complete
+   - Load vehicle with proper quantities
+   - Start route session in app
+
+2. **During Route**:
+   - Follow optimized route order
+   - Record each delivery immediately
+   - Handle payments and returns
+   - Note any issues or client requests
+
+3. **End of Day**:
+   - Complete all scheduled deliveries
+   - Record any returns
+   - Finalize route session
+   - Review summary
+
+### Using the Map View
+
+**Mi Ruta** tab features:
+- Interactive map with all stops
+- Your current position
+- Optimized route path
+- Client markers
+- Distance and time estimates
+- Navigation integration
+
+### Using the List View
+
+**Entregas** tab features:
+- Ordered list of clients
+- Status indicators:
+  - ⏳ Pending
+  - ✓ Completed
+- Quick access to delivery forms
+- Client addresses
+- Programmed quantities
+
+---
+
+## Completing Your Route
+
+### Finalizing Deliveries
+
+When all deliveries are complete:
+
+<Steps>
+  <Step title="Verify All Recorded">
+    Check that all clients show as completed or properly noted if skipped
+  </Step>
+  
+  <Step title="Handle Returns">
+    Record any returned products to adjust inventory
+  </Step>
+  
+  <Step title="View Summary">
+    The app automatically shows a summary when all deliveries are complete
+  </Step>
+</Steps>
+
+### Route Summary
+
+The end-of-route summary displays:
+
+<Card title="Resumen de Ruta" icon="file-invoice-dollar">
+  **Financial**:
+  - Total dinero recaudado (cash collected)
+  - Number of sales completed
+  - Payment amounts
+  
+  **Products**:
+  - Total kg Corriente delivered
+  - Total kg Especial delivered
+  - Comparison to starting quantities
+  
+  **Returns**:
+  - Corriente returned
+  - Especial returned
+  - Return reasons
+</Card>
+
+### Summary is Saved
+
+<Tip>
+The route summary is automatically saved. You can view it again if you return to the app after completion.
+</Tip>
+
+The summary remains available until:
+- You start a new route
+- Administrator marks session as paid
+- You clear it by clicking "Entendido"
+
+---
+
+## Client Management
+
+### Viewing Client Details
+
+Drivers can view (but not modify) client information:
+
+```bash
+Endpoint: GET /api/clientes/cliente/{id}
+Permission: ADMIN, DRIVER
+```
+
+Available information:
+- Client name and business name
+- Delivery address
+- Contact information
+- Assigned route
+- Delivery preferences
+- Account status
+
+### Client Notes
+
+Add delivery notes for:
+- Special instructions
+- Access codes or directions
+- Preferred delivery times
+- Contact preferences
+- Issues or concerns
+
+<Warning>
+Drivers cannot create, update, or delete clients. Contact your administrator for client changes.
+</Warning>
+
+---
+
+## Production Planning Access
+
+Drivers can view the daily production plan:
+
+```bash
+Endpoint: GET /api/entregas/entrega/plan-produccion/{fecha}
+Permission: ADMIN, DRIVER
+```
+
+This shows:
+- Total products needed for deliveries
+- Breakdown by product type
+- Client count per route
+- Quantities by route
+
+Use this to:
+- Verify correct loading quantities
+- Understand daily demand
+- Plan vehicle capacity
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordion title="Cannot start route">
+  Possible causes:
+  - No deliveries scheduled for today
+  - Route not assigned to your driver account
+  - Previous session not properly closed
+  
+  Solution: Contact administrator to verify route assignment and schedules.
+</Accordion>
+
+<Accordion title="Delivery registration fails">
+  Possible causes:
+  - Insufficient stock in system
+  - Missing required pedido ID
+  - Network connectivity issues
+  
+  Solution: Verify stock levels and ensure you started the route session. Check internet connection.
+</Accordion>
+
+<Accordion title="Client not showing in route">
+  Possible causes:
+  - No scheduled delivery for today
+  - Client not assigned to your route
+  - Delivery already completed
+  
+  Solution: Verify schedule with administrator. Check completed deliveries list.
+</Accordion>
+
+<Accordion title="Map not loading">
+  Possible causes:
+  - GPS disabled on device
+  - Network connectivity issues
+  - Location permissions denied
+  
+  Solution: Enable GPS, check internet connection, grant location permissions to app.
+</Accordion>
+
+### Getting Unstuck
+
+If you encounter technical issues:
+
+1. **Check Basics**:
+   - Internet connection
+   - GPS enabled
+   - Battery level
+   - App permissions
+
+2. **Try Recovery**:
+   - Refresh the page
+   - Log out and back in
+   - Clear browser cache (if web app)
+   - Restart device
+
+3. **Contact Support**:
+   - Call administrator
+   - Provide error messages
+   - Note which client/delivery
+   - Continue manually if needed
+
+---
+
+## Best Practices
+
+### Delivery Efficiency
+
+<Tip>
+**Follow the Optimized Order**: The system calculates the most efficient route. Following the suggested order saves time and fuel.
+</Tip>
+
+<Tip>
+**Record Immediately**: Log each delivery right after completion to avoid forgetting details and ensure accurate inventory.
+</Tip>
+
+<Tip>
+**Communicate Issues**: Report client requests, address changes, or access issues to administrators promptly.
+</Tip>
+
+### Safety and Quality
+
+- Handle products carefully
+- Maintain proper product temperature
+- Verify product quality before delivery
+- Follow food safety protocols
+- Drive safely and follow traffic rules
+
+### Customer Service
+
+- Greet clients professionally
+- Verify delivery quantities
+- Handle complaints courteously
+- Document special requests
+- Build positive client relationships
+
+### Device Management
+
+- Keep device charged (carry charger)
+- Protect device from damage
+- Secure device when not in use
+- Update app when prompted
+- Report technical issues immediately
+
+---
+
+## Role Permissions
+
+As a DRIVER, you can:
+
+✅ View your assigned route
+✅ Access client information (read-only)
+✅ Record deliveries, returns, exchanges
+✅ View delivery history
+✅ Start and finalize route sessions
+✅ View production plans
+✅ Access optimized route maps
+
+❌ Cannot manage inventory or products
+❌ Cannot create or modify clients
+❌ Cannot manage routes or assign clients
+❌ Cannot access admin functions
+❌ Cannot view other drivers' routes
+❌ Cannot modify user accounts
+
+---
+
+## Mobile App Features
+
+### Optimized Interface
+
+The driver interface is mobile-first:
+- Large touch-friendly buttons
+- Simple navigation
+- Clear status indicators
+- Quick access to common actions
+- Offline capability (coming soon)
+
+### Real-Time Updates
+
+The system provides:
+- Live inventory updates
+- Delivery confirmation
+- Payment tracking
+- Route progress
+- Issue notifications
+
+### Performance
+
+For best experience:
+- Use modern mobile browser or app
+- Maintain good network connection
+- Keep device updated
+- Clear cache periodically
+
+---
+
+## Getting Help
+
+If you need assistance:
+
+1. **Technical Issues**: Contact your administrator or technical support
+2. **Client Issues**: Document in delivery notes, notify administrator
+3. **Route Questions**: Verify with dispatch or administrator
+4. **Payment Issues**: Record in notes, report to accounting
+5. **Product Issues**: Contact producer or administrator immediately
+
+<Tip>
+Your feedback helps improve the system. Report issues, suggest improvements, and share what works well.
+</Tip>
+
+---
+
+## Quick Reference
+
+### Daily Checklist
+
+- [ ] Check scheduled deliveries
+- [ ] Verify vehicle loading
+- [ ] Start route session
+- [ ] Follow optimized route order
+- [ ] Record each delivery immediately
+- [ ] Handle payments and returns
+- [ ] Complete all stops
+- [ ] Review end-of-day summary
+- [ ] Report any issues
+
+### Key Endpoints (for reference)
+
+```bash
+# Get your route
+GET /api/entregas/rutas/driver/{driverId}
+
+# Get optimized route for today
+GET /api/entregas/rutas/optimized-ortools/{id_ruta}/{fecha}
+
+# Start route
+POST /api/entregas/rutas/iniciar/{id_ruta}
+
+# Record delivery
+POST /api/entregas/entrega/registrar
+
+# View client
+GET /api/clientes/cliente/{id}
+
+# View delivery history
+GET /api/entregas/entrega/cliente/{id}/historial
+```
+
+<Tip>
+Bookmark this guide on your mobile device for quick access while on route!
+</Tip>

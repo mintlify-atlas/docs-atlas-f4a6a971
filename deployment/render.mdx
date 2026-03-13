@@ -1,0 +1,551 @@
+---
+title: 'Render Deployment'
+description: 'Deploy Fluxora to Render cloud platform'
+---
+
+## Overview
+
+Render provides a simple way to deploy Fluxora's microservices architecture to the cloud. This guide walks through deploying all services using the included `render.yaml` configuration.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Create Render Account">
+    Sign up for a free account at [render.com](https://render.com)
+  </Step>
+  
+  <Step title="Install Render CLI (Optional)">
+    For command-line deployments:
+    ```bash
+    npm install -g render-cli
+    render login
+    ```
+  </Step>
+  
+  <Step title="Prepare Repository">
+    Ensure your code is pushed to a Git repository (GitHub, GitLab, or Bitbucket)
+  </Step>
+</Steps>
+
+## Architecture on Render
+
+The Render deployment includes:
+
+- **1 PostgreSQL Database** (managed by Render)
+- **1 Eureka Server** (service discovery)
+- **4 Microservices** (Usuario, Cliente, Inventario, Entrega)
+- **1 API Gateway** (public entry point)
+- **1 Next.js Frontend** (web application)
+
+<Note>
+Unlike Docker Compose which uses separate databases per microservice, the Render setup uses a single managed PostgreSQL instance with separate schemas or databases for each service.
+</Note>
+
+## Render Configuration
+
+The `render.yaml` file defines the complete infrastructure:
+
+### Database Service
+
+```yaml
+services:
+  # PostgreSQL Managed Database
+  - type: pserv
+    name: fluxora-db
+    plan: starter
+    disk:
+      name: postgres-data
+      sizeGB: 10
+    envVars:
+      - key: DATABASE_NAME
+        value: fluxora_db
+      - key: USER
+        value: fluxora
+      - key: PASSWORD
+        generateValue: true  # Render generates secure password
+```
+
+<Warning>
+Render automatically generates a secure password for the database. You'll need to retrieve this and configure it in your microservices.
+</Warning>
+
+### Eureka Server
+
+```yaml
+- type: web
+  name: eureka-server
+  rootDir: ./Microservicios/microservice-eureka
+  plan: starter
+  buildCommand: ./mvnw clean install -DskipTests
+  startCommand: java -jar target/*.jar
+  envVars:
+    - key: PORT
+      value: 8761
+```
+
+The Eureka Server provides service discovery and must be deployed first as other services depend on it.
+
+### Microservices
+
+#### Cliente Service
+
+```yaml
+- type: web
+  name: cliente-service
+  rootDir: ./Microservicios/microservice-cliente
+  plan: starter
+  buildCommand: ./mvnw clean install -DskipTests
+  startCommand: java -jar target/*.jar
+  envVars:
+    - key: PORT
+      value: 8083
+    - key: EUREKA_SERVER_URL
+      value: http://eureka-server:8761/eureka/
+```
+
+#### Usuario Service
+
+```yaml
+- type: web
+  name: usuario-service
+  rootDir: ./Microservicios/microservice-usuario
+  plan: starter
+  buildCommand: ./mvnw clean install -DskipTests
+  startCommand: java -jar target/*.jar
+  envVars:
+    - key: PORT
+      value: 8081
+```
+
+#### Entrega Service
+
+```yaml
+- type: web
+  name: entrega-service
+  rootDir: ./Microservicios/microservice-entrega
+  plan: starter
+  buildCommand: ./mvnw clean install -DskipTests
+  startCommand: java -jar target/*.jar
+  envVars:
+    - key: PORT
+      value: 8084
+```
+
+#### Inventario Service
+
+```yaml
+- type: web
+  name: inventario-service
+  rootDir: ./Microservicios/microservice-inventario
+  plan: starter
+  buildCommand: ./mvnw clean install -DskipTests
+  startCommand: java -jar target/*.jar
+  envVars:
+    - key: PORT
+      value: 8082
+```
+
+### API Gateway
+
+```yaml
+- type: web
+  name: api-gateway
+  rootDir: ./Microservicios/microservice-gateway
+  plan: starter
+  buildCommand: ./mvnw clean install -DskipTests
+  startCommand: java -jar target/*.jar
+  envVars:
+    - key: PORT
+      value: 8080
+```
+
+The API Gateway is the public-facing entry point for all backend requests.
+
+### Frontend
+
+```yaml
+- type: web
+  name: frontend-fluxora
+  rootDir: ./frontend-fluxora
+  plan: starter
+  envVars:
+    - key: PORT
+      value: 3000
+  buildCommand: npm install && npm run build
+  startCommand: npm start
+```
+
+## Service URLs
+
+Once deployed, Render provides URLs for each service:
+
+| Service | URL Pattern |
+|---------|-------------|
+| Frontend | https://frontend-fluxora.onrender.com |
+| API Gateway | https://api-gateway.onrender.com |
+| Eureka Server | https://eureka-server.onrender.com |
+| Usuario Service | https://usuario-service.onrender.com |
+| Cliente Service | https://cliente-service.onrender.com |
+| Inventario Service | https://inventario-service.onrender.com |
+| Entrega Service | https://entrega-service.onrender.com |
+
+<Note>
+Internal services can communicate using service names (e.g., `http://usuario-service:8081`) within Render's private network.
+</Note>
+
+## Deployment Steps
+
+<Steps>
+  <Step title="Create PostgreSQL Database">
+    1. Go to Render Dashboard
+    2. Click "New" → "PostgreSQL"
+    3. Configure:
+       - **Name**: fluxora-db
+       - **Database**: fluxora_db
+       - **User**: fluxora
+       - **Region**: Choose closest to your users
+       - **Plan**: Starter (or Free for testing)
+    4. Click "Create Database"
+    5. Note the **Internal Database URL** and **External Database URL**
+  </Step>
+  
+  <Step title="Deploy from Dashboard (Option 1)">
+    1. Click "New" → "Blueprint"
+    2. Connect your Git repository
+    3. Render will detect `render.yaml` automatically
+    4. Review services and click "Apply"
+    5. Render will deploy all services in order
+  </Step>
+  
+  <Step title="Deploy with Render CLI (Option 2)">
+    ```bash
+    # Login to Render
+    render login
+    
+    # Deploy from render.yaml
+    render blueprint deploy
+    ```
+  </Step>
+  
+  <Step title="Configure Environment Variables">
+    For each microservice, add environment variables in Render Dashboard:
+    
+    **Usuario Service**:
+    - `DB_URL`: Internal database URL (from Step 1)
+    - `DB_USERNAME`: fluxora
+    - `DB_PASSWORD`: (from database credentials)
+    - `JWT_SECRET`: Your JWT secret
+    - `JWT_EXP`: 60 (minutes)
+    - `EUREKA_URL`: http://eureka-server:8761/eureka/
+    
+    Repeat for Cliente, Inventario, and Entrega services with their respective database URLs.
+  </Step>
+  
+  <Step title="Configure Frontend Environment Variables">
+    In the frontend service settings:
+    - `NEXT_PUBLIC_API_URL`: https://api-gateway.onrender.com
+    - `NEXT_PUBLIC_APP_URL`: https://frontend-fluxora.onrender.com
+  </Step>
+  
+  <Step title="Update CORS Configuration">
+    Update API Gateway's `application.properties` to allow your frontend URL:
+    ```properties
+    spring.cloud.gateway.server.webflux.globalcors.cors-configurations.[/**].allowed-origins=https://frontend-fluxora.onrender.com
+    ```
+    Redeploy the API Gateway after this change.
+  </Step>
+  
+  <Step title="Verify Deployment">
+    1. Check each service status in Render Dashboard
+    2. Visit Eureka Server URL to verify service registration
+    3. Test API Gateway endpoints
+    4. Access the frontend application
+  </Step>
+</Steps>
+
+## Database Setup
+
+### Creating Separate Schemas
+
+For better isolation, create separate schemas for each microservice:
+
+```sql
+-- Connect to fluxora_db database
+
+-- Create schemas
+CREATE SCHEMA IF NOT EXISTS usuario;
+CREATE SCHEMA IF NOT EXISTS cliente;
+CREATE SCHEMA IF NOT EXISTS inventario;
+CREATE SCHEMA IF NOT EXISTS entrega;
+
+-- Grant permissions
+GRANT ALL PRIVILEGES ON SCHEMA usuario TO fluxora;
+GRANT ALL PRIVILEGES ON SCHEMA cliente TO fluxora;
+GRANT ALL PRIVILEGES ON SCHEMA inventario TO fluxora;
+GRANT ALL PRIVILEGES ON SCHEMA entrega TO fluxora;
+```
+
+### Updating Connection URLs
+
+Modify database URLs in environment variables to use specific schemas:
+
+```bash
+# Usuario Service
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=usuario
+
+# Cliente Service
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=cliente
+
+# Inventario Service
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=inventario
+
+# Entrega Service
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=entrega
+```
+
+## Environment Variables Configuration
+
+### Required Variables Per Service
+
+<CodeGroup>
+```bash Usuario Service
+PORT=8081
+SERVER_PORT=8081
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=usuario
+DB_USERNAME=fluxora
+DB_PASSWORD=<database-password>
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=<your-secret-key>
+JWT_EXP=60
+```
+
+```bash Cliente Service
+PORT=8083
+SERVER_PORT=8083
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=cliente
+DB_USERNAME=fluxora
+DB_PASSWORD=<database-password>
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=<your-secret-key>
+JWT_EXP=60
+```
+
+```bash Inventario Service
+PORT=8082
+SERVER_PORT=8082
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=inventario
+DB_USERNAME=fluxora
+DB_PASSWORD=<database-password>
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=<your-secret-key>
+JWT_EXP=60
+```
+
+```bash Entrega Service
+PORT=8084
+SERVER_PORT=8084
+DB_URL=jdbc:postgresql://<host>:<port>/fluxora_db?currentSchema=entrega
+DB_USERNAME=fluxora
+DB_PASSWORD=<database-password>
+EUREKA_URL=http://eureka-server:8761/eureka/
+JWT_SECRET=<your-secret-key>
+JWT_EXP=60
+SMTP_PASSWORD=<gmail-app-password>
+```
+
+```bash Frontend
+PORT=3000
+NEXT_PUBLIC_API_URL=https://api-gateway.onrender.com
+NEXT_PUBLIC_APP_URL=https://frontend-fluxora.onrender.com
+```
+</CodeGroup>
+
+See [Environment Variables](/deployment/environment-variables) for complete details.
+
+## Service Dependencies
+
+Deploy services in this order to ensure dependencies are met:
+
+1. **PostgreSQL Database** (managed service)
+2. **Eureka Server** (service discovery)
+3. **Microservices** (Usuario, Cliente, Inventario, Entrega) - can be deployed in parallel
+4. **API Gateway** (depends on microservices)
+5. **Frontend** (depends on API Gateway)
+
+<Warning>
+Render will attempt to deploy all services simultaneously from `render.yaml`. Monitor the logs to ensure services start in the correct order. You may need to manually restart dependent services if they fail initially.
+</Warning>
+
+## Monitoring and Logs
+
+### View Logs
+
+In Render Dashboard:
+1. Select a service
+2. Click "Logs" tab
+3. View real-time logs or search historical logs
+
+### Health Checks
+
+Render automatically monitors service health. Configure custom health check endpoints:
+
+```yaml
+- type: web
+  name: usuario-service
+  healthCheckPath: /api/usuarios/actuator/health
+```
+
+### Metrics
+
+Render provides built-in metrics:
+- CPU usage
+- Memory usage
+- Request count
+- Response times
+- Error rates
+
+## Scaling
+
+### Horizontal Scaling
+
+Increase instance count for services:
+
+```yaml
+- type: web
+  name: usuario-service
+  numInstances: 3  # Run 3 instances
+```
+
+Or via Dashboard:
+1. Select service
+2. Go to "Settings" → "Scaling"
+3. Adjust instance count
+
+### Vertical Scaling
+
+Upgrade service plans:
+- **Starter**: 512 MB RAM, 0.5 CPU
+- **Standard**: 2 GB RAM, 1 CPU
+- **Pro**: 4 GB RAM, 2 CPU
+
+## Troubleshooting
+
+### Service Won't Start
+
+1. Check build logs for compilation errors:
+```bash
+./mvnw clean install -DskipTests
+```
+
+2. Verify environment variables are set correctly
+
+3. Check if dependent services (Eureka, Database) are running
+
+### Database Connection Failures
+
+1. Verify database is running in Render Dashboard
+
+2. Check connection string format:
+```
+jdbc:postgresql://<host>:<port>/<database>?currentSchema=<schema>
+```
+
+3. Ensure firewall rules allow connections (Render handles this automatically for internal connections)
+
+4. Test connection from service logs
+
+### Eureka Registration Issues
+
+1. Verify Eureka Server is accessible:
+```bash
+curl https://eureka-server.onrender.com/eureka/apps
+```
+
+2. Check `EUREKA_URL` environment variable in microservices
+
+3. Review Eureka Server logs for registration attempts
+
+### Frontend Can't Connect to Backend
+
+1. Verify API Gateway URL in frontend environment variables
+
+2. Check CORS configuration in API Gateway allows frontend domain
+
+3. Test API endpoints directly:
+```bash
+curl https://api-gateway.onrender.com/api/usuarios/health
+```
+
+### Build Timeouts
+
+If builds timeout (15 minute limit):
+
+1. Optimize build command:
+```yaml
+buildCommand: ./mvnw clean install -DskipTests -T 1C
+```
+
+2. Use dependency caching by including `.m2` directory
+
+3. Consider using Docker-based builds with pre-built base images
+
+## Production Best Practices
+
+<Steps>
+  <Step title="Use Production Plans">
+    Upgrade from Starter to Standard plans for better performance and uptime SLA.
+  </Step>
+  
+  <Step title="Enable Auto-Deploy">
+    Configure automatic deployments on git push to main branch.
+  </Step>
+  
+  <Step title="Set Up Database Backups">
+    Render automatically backs up managed PostgreSQL databases. Configure retention period.
+  </Step>
+  
+  <Step title="Configure Custom Domains">
+    Add custom domains for frontend and API Gateway:
+    - frontend.fluxora.com
+    - api.fluxora.com
+  </Step>
+  
+  <Step title="Enable HTTPS">
+    Render provides free SSL certificates automatically.
+  </Step>
+  
+  <Step title="Set Up Alerts">
+    Configure alerts for service failures, high error rates, or resource usage.
+  </Step>
+  
+  <Step title="Implement Rate Limiting">
+    Add rate limiting to API Gateway to prevent abuse.
+  </Step>
+  
+  <Step title="Use Secret Management">
+    Store sensitive values as Render environment variables, not in code.
+  </Step>
+</Steps>
+
+## Cost Optimization
+
+### Free Tier Limitations
+
+- **Web Services**: Spin down after 15 minutes of inactivity
+- **Databases**: 90 days data retention
+- **Bandwidth**: 100 GB/month
+
+### Reduce Costs
+
+1. Use Starter plan only for production services
+2. Use Free tier for development/staging environments  
+3. Scale down non-critical services
+4. Implement caching to reduce database queries
+5. Optimize Docker images to reduce build times
+
+## Next Steps
+
+- Review [Environment Variables](/deployment/environment-variables) reference
+- Set up [Monitoring]()
+- Configure [Custom Domains]()
+- Implement [CI/CD Pipeline]()

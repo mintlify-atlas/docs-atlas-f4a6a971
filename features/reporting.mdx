@@ -1,0 +1,584 @@
+---
+title: 'Reporting & Analytics'
+description: 'Generate comprehensive reports on deliveries, sales, inventory, and clients'
+icon: 'chart-line'
+---
+
+## Overview
+
+Fluxora's Reporting module provides powerful analytics and reporting capabilities across all business operations. Generate detailed reports on deliveries, sales, inventory movements, and client behavior. Export reports to PDF and Excel for sharing and further analysis.
+
+## Report Types
+
+Fluxora offers four comprehensive report categories:
+
+<CardGroup cols={2}>
+  <Card title="Deliveries Report" icon="truck-fast" href="#delivery-reports">
+    Analyze delivery performance, completion rates, and distribution metrics
+  </Card>
+  <Card title="Sales Report" icon="dollar-sign" href="#sales-reports">
+    Track revenue, sales volumes, and customer purchasing patterns
+  </Card>
+  <Card title="Inventory Report" icon="warehouse" href="#inventory-reports">
+    Monitor stock levels, movements, waste, and valuation
+  </Card>
+  <Card title="Clients Report" icon="users" href="#client-reports">
+    Understand client behavior, purchase frequency, and lifetime value
+  </Card>
+</CardGroup>
+
+## Generating Reports
+
+### Basic Workflow
+
+<Steps>
+  <Step title="Access Reports">
+    Navigate to **Dashboard > Reports** from the main menu
+  </Step>
+  
+  <Step title="Select Report Type">
+    Click on one of the four report cards:
+    - Deliveries Report
+    - Sales Report
+    - Inventory Report
+    - Clients Report
+  </Step>
+  
+  <Step title="Configure Filters">
+    Set report parameters:
+    - **Date Range**: Start and end dates
+    - **Specific Filters**: Route, client, product (varies by report type)
+  </Step>
+  
+  <Step title="Generate Report">
+    Click **Generate Report** button
+    - System processes data
+    - Results appear in table format
+    - Summary statistics displayed at top
+  </Step>
+  
+  <Step title="Export (Optional)">
+    Export to Excel or PDF:
+    - Click **Export to Excel** for data analysis
+    - Click **Export to PDF** for printing/sharing
+  </Step>
+</Steps>
+
+## Delivery Reports
+
+### Report Data
+
+Delivery reports show:
+
+- **Date**: Delivery date
+- **Scheduled Deliveries** (entregasProgramadas): Total planned deliveries
+- **Completed Deliveries** (totalEntregas): Successfully completed
+- **Kg Corriente**: Regular products delivered (kg)
+- **Kg Especial**: Premium products delivered (kg)
+- **Total Kg** (kgTotal): Combined weight delivered
+- **Completion %** (porcentajeCompletado): Success rate
+
+### Summary Statistics
+
+The report summary displays:
+
+- **Total Deliveries Scheduled**: Sum of all planned deliveries
+- **Total Deliveries Completed**: Sum of successful deliveries
+- **Overall Completion Rate**: Average percentage completed
+- **Total Kg Delivered**: Sum of all products distributed
+- **Average Daily Deliveries**: Mean deliveries per day
+
+### Filter Options
+
+- **Date Range**: Select start and end dates
+- **Route Filter**: View specific routes only
+- **Driver Filter**: See deliveries by specific driver
+- **Status Filter**: All, Completed, or Pending only
+
+### Use Cases
+
+<AccordionGroup>
+  <Accordion title="Analyzing delivery completion rates">
+    1. Generate delivery report for last month
+    2. Review **Completion %** column
+    3. Identify days with low completion rates
+    4. Check delivery comments for those dates
+    5. Identify patterns (weather, holidays, etc.)
+    6. Adjust scheduling to improve completion rates
+  </Accordion>
+
+  <Accordion title="Comparing route performance">
+    1. Generate report for current month
+    2. Filter by **Route A**
+    3. Note total deliveries and completion rate
+    4. Generate new report for same period
+    5. Filter by **Route B**
+    6. Compare metrics between routes
+    7. Identify best-performing routes
+    8. Replicate successful route strategies
+  </Accordion>
+</AccordionGroup>
+
+## Sales Reports
+
+### Report Data
+
+Sales reports include:
+
+- **Date**: Transaction date
+- **Total Sales** (totalVentas): Revenue in CLP
+- **Total Kilos** (totalKilos): Products sold by weight
+- **Number of Clients** (numeroClientes): Unique customers served
+- **Average Sale** (ventaPromedio): Average transaction value
+
+### Summary Statistics
+
+- **Total Revenue**: Sum of all sales
+- **Total Volume**: Total kg sold
+- **Total Clients Served**: Unique client count
+- **Average Transaction**: Mean sale amount
+- **Daily Average Revenue**: Average revenue per day
+
+### Filter Options
+
+- **Date Range**: Select period for analysis
+- **Client Filter**: Sales to specific client only
+- **Product Type**: Corriente, Especial, or All
+- **Route Filter**: Sales by specific route
+
+### Sales Analysis
+
+<CardGroup cols={2}>
+  <Card title="Revenue Trends" icon="chart-line">
+    Identify daily, weekly, and monthly revenue patterns to optimize production
+  </Card>
+  
+  <Card title="Client Segmentation" icon="users-rectangle">
+    Identify high-value clients based on purchase volume and frequency
+  </Card>
+  
+  <Card title="Product Performance" icon="star">
+    Compare sales of Corriente vs Especial products
+  </Card>
+  
+  <Card title="Seasonal Patterns" icon="calendar">
+    Detect seasonal trends and plan inventory accordingly
+  </Card>
+</CardGroup>
+
+### Use Cases
+
+<AccordionGroup>
+  <Accordion title="Monthly revenue analysis">
+    1. Generate sales report for last month
+    2. Review **Total Sales** by date
+    3. Identify peak sales days (weekends, holidays)
+    4. Calculate growth vs previous month
+    5. Compare to production costs
+    6. Determine overall profitability
+    7. Set targets for next month
+  </Accordion>
+
+  <Accordion title="Identifying top clients">
+    1. Generate sales report for last quarter
+    2. Filter by individual clients
+    3. Export to Excel
+    4. Sort by **Total Sales** column
+    5. Identify top 20% of clients (80/20 rule)
+    6. Review their purchase patterns
+    7. Create special loyalty programs
+    8. Prioritize service to high-value clients
+  </Accordion>
+</AccordionGroup>
+
+## Inventory Reports
+
+### Report Data
+
+Inventory reports show:
+
+- **Product**: Product name
+- **Type** (tipo): CORRIENTE or ESPECIAL
+- **Initial Stock** (stockInicial): Stock at period start
+- **Entries** (entradas): New production added (kg)
+- **Exits/Waste** (salidas): Losses due to mermas (kg)
+- **Final Stock** (stockFinal): Stock at period end
+- **Total Value** (valorTotal): Inventory value in CLP
+- **Turnover %** (rotacion): Inventory turnover rate
+- **Waste %** (porcentajeMerma): Percentage of waste
+- **Stock Status** (estadoStock): Healthy, Low, Critical
+
+### Summary Statistics
+
+- **Total Inventory Value**: Sum of all product values
+- **Total Entries**: Total production volume
+- **Total Exits**: Total waste/losses
+- **Average Turnover**: Mean inventory rotation
+- **Overall Waste Rate**: Total waste percentage
+
+### Filter Options
+
+- **Date Range**: Period for inventory analysis
+- **Product Filter**: Specific product only
+- **Category Filter**: panaderia, pasteleria, etc.
+- **Status Filter**: Healthy, Low, or Critical stock levels
+
+### Inventory Metrics Explained
+
+<Accordion title="Turnover Rate (Rotación)">
+  **Turnover % = (Exits ÷ Initial Stock) × 100**
+  
+  Measures how quickly inventory is sold:
+  - **High turnover (&gt;80%)**: Good - products selling quickly
+  - **Medium turnover (50-80%)**: Normal - steady sales
+  - **Low turnover (&lt;50%)**: Concern - products moving slowly
+  
+  High turnover indicates:
+  - Strong demand
+  - Efficient inventory management
+  - Fresh products
+  
+  Low turnover may indicate:
+  - Overproduction
+  - Declining demand
+  - Need to adjust production
+</Accordion>
+
+<Accordion title="Waste Percentage (% Merma)">
+  **Waste % = (Exits ÷ Total Production) × 100**
+  
+  Measures product loss:
+  - **Acceptable waste (&lt;5%)**: Normal for bakery operations
+  - **Moderate waste (5-10%)**: Monitor and improve processes
+  - **High waste (&gt;10%)**: Critical - investigate causes
+  
+  Common causes of waste:
+  - Expired products
+  - Quality defects
+  - Overproduction
+  - Storage issues
+  
+  Reduce waste by:
+  - Better demand forecasting
+  - FIFO inventory practices
+  - Quality control improvements
+  - Proper storage conditions
+</Accordion>
+
+<Accordion title="Stock Status">
+  System automatically categorizes stock levels:
+  
+  - **Healthy**: Stock above minimum threshold (green)
+  - **Low**: Stock approaching minimum (yellow)
+  - **Critical**: Stock below minimum or out of stock (red)
+  
+  Thresholds based on:
+  - Historical daily demand
+  - Production lead time
+  - Safety stock requirements
+</Accordion>
+
+### Use Cases
+
+<AccordionGroup>
+  <Accordion title="Calculating inventory value">
+    1. Generate inventory report for current month
+    2. Review **Total Value** column
+    3. Sum all product values
+    4. Compare to previous months
+    5. Identify trends:
+       - Increasing value = building inventory
+       - Decreasing value = depleting inventory
+    6. Adjust production to maintain optimal levels
+  </Accordion>
+
+  <Accordion title="Reducing waste">
+    1. Generate inventory report for last quarter
+    2. Sort by **Waste %** column
+    3. Identify products with >10% waste
+    4. Investigate root causes:
+       - Check production batch sizes
+       - Review expiration dates
+       - Analyze demand patterns
+    5. Take action:
+       - Reduce production quantities
+       - Improve quality control
+       - Adjust recipes
+       - Better storage practices
+    6. Monitor improvements next month
+  </Accordion>
+</AccordionGroup>
+
+## Client Reports
+
+### Report Data
+
+Client reports display:
+
+- **Client Name** (nombreCliente): Customer name
+- **Total Purchases** (totalCompras): Number of deliveries received
+- **Total Kilos** (totalKilos): Total products purchased (kg)
+- **Last Purchase** (ultimaCompra): Date of most recent order
+- **Total Value** (valorTotal): Lifetime purchase value (CLP)
+
+### Summary Statistics
+
+- **Total Active Clients**: Number of clients with purchases in period
+- **Total Purchases**: Sum of all transactions
+- **Total Revenue from Clients**: Sum of all purchase values
+- **Average Purchase per Client**: Mean transaction amount
+- **Average Purchase Frequency**: Mean orders per client
+
+### Filter Options
+
+- **Date Range**: Period for client analysis
+- **Route Filter**: Clients on specific route
+- **Purchase Frequency**: High, Medium, or Low frequency buyers
+- **Value Tier**: High-value, medium, or low-value clients
+
+### Client Segmentation
+
+<CardGroup cols={3}>
+  <Card title="VIP Clients" icon="crown">
+    Top 10% by purchase value - prioritize service and retention
+  </Card>
+  <Card title="Regular Clients" icon="user-check">
+    Frequent buyers (weekly+) - maintain consistent service
+  </Card>
+  <Card title="Occasional Clients" icon="user">
+    Infrequent buyers - opportunities for engagement
+  </Card>
+  <Card title="Inactive Clients" icon="user-xmark">
+    No purchases in 30+ days - reactivation campaigns
+  </Card>
+  <Card title="New Clients" icon="user-plus">
+    First purchase within 30 days - onboarding focus
+  </Card>
+  <Card title="At-Risk Clients" icon="triangle-exclamation">
+    Declining purchase frequency - retention efforts
+  </Card>
+</CardGroup>
+
+### Use Cases
+
+<AccordionGroup>
+  <Accordion title="Identifying customer churn">
+    1. Generate client report for last 90 days
+    2. Sort by **Last Purchase** date
+    3. Identify clients with no purchases in 30+ days
+    4. Export list to Excel
+    5. Review client history:
+       - Previous purchase frequency
+       - Average order size
+       - Any recorded issues
+    6. Take action:
+       - Call client to check in
+       - Offer special promotion
+       - Investigate service issues
+    7. Track reactivation success rate
+  </Accordion>
+
+  <Accordion title="Planning growth strategies">
+    1. Generate client report for last year
+    2. Calculate client lifetime value (CLV)
+    3. Segment clients by value tiers
+    4. Analyze characteristics of high-value clients:
+       - Purchase frequency
+       - Product preferences
+       - Route/location patterns
+    5. Develop acquisition strategy:
+       - Target similar businesses
+       - Focus on high-value segments
+       - Replicate successful patterns
+    6. Set growth targets by segment
+  </Accordion>
+</AccordionGroup>
+
+## Export Options
+
+### Excel Export
+
+Fluxora uses the **xlsx** library to generate Excel files:
+
+**Excel Export Includes:**
+- All report data in spreadsheet format
+- Summary statistics sheet
+- Formatted tables with headers
+- Color-coded columns
+- Formulas for calculated fields
+- Charts and visualizations (future enhancement)
+
+**When to Use Excel:**
+- Need to perform custom calculations
+- Creating pivot tables
+- Combining with other data sources
+- Detailed data analysis
+- Sharing editable reports
+
+<Steps>
+  <Step title="Generate Report">
+    Create the report with desired filters
+  </Step>
+  
+  <Step title="Click Export to Excel">
+    Click the green **Export to Excel** button
+  </Step>
+  
+  <Step title="Download File">
+    Browser downloads Excel file automatically
+    - Filename: `reporte_[type]_[date].xlsx`
+  </Step>
+  
+  <Step title="Open in Excel">
+    Open file in Microsoft Excel or Google Sheets
+  </Step>
+</Steps>
+
+### PDF Export
+
+Fluxora uses **jsPDF** library to generate PDF reports:
+
+**PDF Export Includes:**
+- Company header with logo
+- Report title and date range
+- Summary statistics
+- Complete data table
+- Page numbers
+- Professional formatting
+
+**When to Use PDF:**
+- Sharing with stakeholders
+- Printing reports
+- Creating documentation
+- Archiving records
+- Email distribution
+
+<Steps>
+  <Step title="Generate Report">
+    Create the report with desired filters
+  </Step>
+  
+  <Step title="Click Export to PDF">
+    Click the red **Export to PDF** button
+  </Step>
+  
+  <Step title="Download File">
+    Browser downloads PDF automatically
+    - Filename: `reporte_[type]_[date].pdf`
+  </Step>
+  
+  <Step title="View or Print">
+    Open PDF in any PDF viewer or print directly
+  </Step>
+</Steps>
+
+<Note>
+  Both Excel and PDF exports include the same data shown in the web report, filtered according to your selections.
+</Note>
+
+## Dashboard Analytics
+
+### Real-Time Dashboard
+
+The Reports dashboard provides at-a-glance insights:
+
+- **Today's Deliveries**: Completed vs scheduled
+- **Current Week Revenue**: Total sales this week
+- **Active Routes**: Routes in progress
+- **Low Stock Alerts**: Products needing attention
+- **Recent Activity**: Latest deliveries and sales
+
+### Visual Analytics
+
+Fluxora uses **Chart.js** for data visualization:
+
+<CardGroup cols={2}>
+  <Card title="Line Charts" icon="chart-line">
+    Revenue trends, sales over time, inventory levels
+  </Card>
+  <Card title="Bar Charts" icon="chart-column">
+    Deliveries by route, sales by product, client comparisons
+  </Card>
+  <Card title="Pie Charts" icon="chart-pie">
+    Market share, product mix, client distribution
+  </Card>
+  <Card title="Area Charts" icon="chart-area">
+    Cumulative sales, inventory movements, trend analysis
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Review Cadence" icon="calendar-days">
+    Review delivery reports weekly, sales monthly, inventory bi-weekly
+  </Card>
+  
+  <Card title="Consistent Date Ranges" icon="calendar-range">
+    Use same periods (e.g., monthly) for accurate comparisons
+  </Card>
+  
+  <Card title="Action-Oriented Analysis" icon="list-check">
+    Always identify 2-3 actionable insights from each report
+  </Card>
+  
+  <Card title="Track KPIs" icon="bullseye">
+    Monitor key metrics: completion rate, waste %, revenue growth
+  </Card>
+  
+  <Card title="Share Insights" icon="share-nodes">
+    Distribute relevant reports to team members weekly
+  </Card>
+  
+  <Card title="Archive Reports" icon="folder">
+    Save monthly PDFs for historical reference and auditing
+  </Card>
+</CardGroup>
+
+## Tips & Tricks
+
+- **Custom Date Ranges**: Use specific date ranges to analyze holiday periods or special events
+- **Comparative Analysis**: Generate reports for same period last year to identify growth
+- **Filter Combinations**: Combine multiple filters for detailed analysis (e.g., specific route + date range)
+- **Export Templates**: Create Excel templates with formulas for recurring analysis
+- **Scheduled Reports**: Plan to generate standard reports on the same day each week/month
+- **Data Validation**: Cross-reference report data with delivery records to ensure accuracy
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Monthly business review">
+    1. Generate all four report types for last month
+    2. Export each to PDF
+    3. Create summary deck with key insights:
+       - Total revenue and growth %
+       - Delivery completion rate
+       - Top 10 clients by revenue
+       - Inventory turnover and waste
+       - New vs churned clients
+    4. Present findings to team
+    5. Identify improvement opportunities
+    6. Set goals for next month
+  </Accordion>
+
+  <Accordion title="Cost analysis for pricing decisions">
+    1. Generate inventory report for last quarter
+    2. Review production costs per product
+    3. Generate sales report for same period
+    4. Calculate profit margin:
+       - Profit = Revenue - Production Cost
+       - Margin % = (Profit ÷ Revenue) × 100
+    5. Identify products with low margins
+    6. Decide whether to:
+       - Increase prices
+       - Reduce production costs
+       - Discontinue unprofitable products
+  </Accordion>
+</AccordionGroup>
+
+## Related Features
+
+- [Delivery Management](/features/delivery-management) - Track deliveries included in reports
+- [Inventory Management](/features/inventory-management) - View detailed inventory data
+- [Client Management](/features/client-management) - Manage clients analyzed in reports
+- [User Management](/features/user-management) - Control report access by role

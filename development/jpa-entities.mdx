@@ -1,0 +1,617 @@
+---
+title: 'JPA Entities'
+description: 'JPA entity design patterns, relationships, DTOs, and the repository pattern'
+icon: 'database'
+---
+
+## Overview
+
+Fluxora uses **JPA (Jakarta Persistence API)** with Hibernate as the ORM provider. Entities represent database tables and follow domain-driven design principles.
+
+## Entity Design Patterns
+
+### Basic Entity Structure
+
+All entities follow a consistent pattern with Lombok annotations:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/entity/Cliente.java
+package com.microservice.cliente.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity                    // Mark as JPA entity
+@Data                      // Lombok: generates getters, setters, toString, equals, hashCode
+@NoArgsConstructor        // Lombok: generates no-args constructor (required by JPA)
+@AllArgsConstructor       // Lombok: generates all-args constructor
+public class Cliente {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String nombreNegocio;
+    private String nombre;
+    private String direccion;
+    private String contacto;
+    private String email;
+
+    // Coordenadas geográficas
+    @Column(name = "latitud")
+    private Double latitud;
+
+    @Column(name = "longitud")
+    private Double longitud;
+
+    // Precios personalizados por tipo de producto
+    @Column(name = "precio_corriente")
+    private Double precioCorriente;
+
+    @Column(name = "precio_especial")
+    private Double precioEspecial;
+
+    // Método utilitario para OR-Tools
+    public double[] getCoordenadas() {
+        return new double[] { 
+            latitud != null ? latitud : 0.0, 
+            longitud != null ? longitud : 0.0 
+        };
+    }
+}
+```
+
+<Note>
+**Lombok Annotations:**
+- `@Data`: Combines `@Getter`, `@Setter`, `@ToString`, `@EqualsAndHashCode`, and `@RequiredArgsConstructor`
+- `@NoArgsConstructor`: Required by JPA for entity instantiation
+- `@AllArgsConstructor`: Convenient for creating test instances
+</Note>
+
+### Entity with Custom Table Mapping
+
+```java microservice-inventario/src/main/java/com/microservice/entity/LoteProducto.java
+@Entity
+@Table(name = "lotes_producto")  // Custom table name
+@Data
+@Builder                          // Lombok: builder pattern
+@NoArgsConstructor
+@AllArgsConstructor
+public class LoteProducto {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "producto_id", nullable = false)
+    private Long productoId;
+
+    @Column(name = "cantidad_producida", nullable = false)
+    private Integer cantidadProducida;
+
+    @Column(name = "stock_actual", nullable = false)
+    private Integer stockActual;
+
+    @Column(name = "costo_produccion_total", nullable = false)
+    private Double costoProduccionTotal;
+
+    @Column(name = "costo_unitario", nullable = false)
+    private Double costoUnitario;
+
+    @Column(name = "fecha_produccion", nullable = false)
+    private LocalDate fechaProduccion;
+
+    @Column(name = "fecha_vencimiento")
+    private LocalDate fechaVencimiento;
+
+    private String estado; // disponible, agotado, vencido
+
+    // Transient methods are not persisted to database
+    @Transient
+    public Double getGananciaUnitaria(Double precioVenta) {
+        if (precioVenta == null || costoUnitario == null) return 0.0;
+        return precioVenta - costoUnitario;
+    }
+
+    @Transient
+    public Double getGananciaTotal(Double precioVenta) {
+        if (precioVenta == null || stockActual == null || costoUnitario == null) return 0.0;
+        return (precioVenta * stockActual) - (costoUnitario * stockActual);
+    }
+}
+```
+
+<Tip>
+Use `@Transient` for calculated fields that shouldn't be persisted to the database.
+</Tip>
+
+### Builder Pattern for Entities
+
+```java
+// Using @Builder annotation
+LoteProducto lote = LoteProducto.builder()
+    .productoId(1L)
+    .cantidadProducida(100)
+    .stockActual(100)
+    .costoProduccionTotal(5000.0)
+    .costoUnitario(50.0)
+    .fechaProduccion(LocalDate.now())
+    .estado("disponible")
+    .build();
+```
+
+## JPA Relationships
+
+### @ManyToOne Relationship
+
+Multiple entities reference a single parent entity:
+
+```java microservice-usuario/src/main/java/com/microservice/usuario/entity/Usuario.java
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Usuario {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String nombre;
+    private String email;
+    private String password;
+
+    @ManyToOne                           // Many users belong to one role
+    @JoinColumn(name = "rol_id", nullable = false)
+    private Rol rol;
+}
+```
+
+```java microservice-usuario/src/main/java/com/microservice/usuario/entity/Rol.java
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Rol {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String rol;  // ADMIN, DRIVER, etc.
+}
+```
+
+<CardGroup cols={2}>
+  <Card title="Fetch Strategy" icon="download">
+    By default, `@ManyToOne` uses `FetchType.EAGER`. Consider using `LAZY` for performance:
+    ```java
+    @ManyToOne(fetch = FetchType.LAZY)
+    ```
+  </Card>
+  <Card title="Join Column" icon="link">
+    `@JoinColumn` specifies the foreign key column name in the database
+  </Card>
+</CardGroup>
+
+### Entity Lifecycle Callbacks
+
+Use Hibernate annotations for automatic timestamp management:
+
+```java microservice-entrega/src/main/java/com/microservice/entrega/entity/ProgramacionEntrega.java
+@Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class ProgramacionEntrega {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long id_ruta;
+    private Long id_cliente;
+    private Long id_lote;
+    private LocalDate fecha_programada;
+    private String nombreProducto;
+    private Integer cantidadProducto;
+    private Double kg_corriente_programado;
+    private Double kg_especial_programado;
+    private Integer orden;
+    private String estado = "PENDIENTE";  // Default value
+    
+    @CreationTimestamp           // Automatically set on insert
+    private LocalDateTime fecha_creacion;
+    
+    @UpdateTimestamp             // Automatically update on every change
+    private LocalDateTime fecha_actualizacion;
+}
+```
+
+### Enum Types in Entities
+
+```java microservice-entrega/src/main/java/com/microservice/entrega/entity/RegistroEntrega.java
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class RegistroEntrega {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Enumerated(EnumType.STRING)  // Store as string in DB (recommended)
+    private TipoMovimiento tipo;
+    
+    private Long id_pedido;
+    private Long id_cliente;
+    private LocalDateTime hora_entregada;
+    private Double corriente_entregado;
+    private Double especial_entregado;
+    private Double monto_corriente;
+    private Double monto_especial;
+    private Double monto_total;
+    private String comentario;
+}
+
+public enum TipoMovimiento {
+    ENTREGA,
+    DEVOLUCION,
+    AJUSTE
+}
+```
+
+<Warning>
+Always use `EnumType.STRING` instead of `EnumType.ORDINAL` to avoid issues when reordering enum values.
+</Warning>
+
+## DTOs and Mapping
+
+### Data Transfer Objects (DTOs)
+
+DTOs decouple API responses from database entities:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/dto/ClienteDTO.java
+package com.microservice.cliente.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ClienteDTO {
+    private Long id;
+    private String nombreNegocio;
+    private String nombre;
+    private String contacto;
+    private String direccion;
+    private Double latitud;
+    private Double longitud;
+    private String email;
+    private Double precioCorriente;
+    private Double precioEspecial;
+    private String nombreRuta; // Enriched data from another service
+}
+```
+
+<Check>
+**Why Use DTOs?**
+- Control exactly what data is exposed in APIs
+- Add computed or aggregated fields
+- Prevent exposing sensitive entity fields
+- Avoid serialization issues with lazy-loaded relationships
+</Check>
+
+### MapStruct Mapping
+
+Fluxora uses **MapStruct** for compile-time DTO mapping:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/mapper/ClienteMapper.java
+package com.microservice.cliente.mapper;
+
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import com.microservice.cliente.dto.ClienteDTO;
+import com.microservice.cliente.entity.Cliente;
+
+/**
+ * Mapper para convertir entre entidades Cliente y DTOs
+ * MapStruct genera automáticamente la implementación en tiempo de compilación
+ * @componentModel "spring" hace que MapStruct genere un bean de Spring
+ * que puede ser inyectado como cualquier otro servicio
+ */
+@Mapper(componentModel = "spring")
+public interface ClienteMapper {
+
+    @Mapping(target = "nombreRuta", source = "nombreRuta")
+    ClienteDTO toDTO(Cliente cliente, String nombreRuta);
+
+    @Mapping(target = "nombreRuta", constant = "Sin ruta asignada")
+    ClienteDTO toDTO(Cliente cliente);
+}
+```
+
+### MapStruct Configuration in Maven
+
+```xml pom.xml
+<properties>
+    <mapstruct.version>1.6.3</mapstruct.version>
+    <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+</properties>
+
+<dependencies>
+    <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct</artifactId>
+        <version>${mapstruct.version}</version>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <annotationProcessorPaths>
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                        <version>${lombok.version}</version>
+                    </path>
+                    <path>
+                        <groupId>org.mapstruct</groupId>
+                        <artifactId>mapstruct-processor</artifactId>
+                        <version>${mapstruct.version}</version>
+                    </path>
+                    <!-- Critical: allows Lombok and MapStruct to work together -->
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok-mapstruct-binding</artifactId>
+                        <version>${lombok-mapstruct-binding.version}</version>
+                    </path>
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+<Note>
+The `lombok-mapstruct-binding` dependency is **critical** for Lombok and MapStruct to work together properly.
+</Note>
+
+### Using Mappers in Services
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/service/ClienteService.java
+@Service
+public class ClienteService {
+
+    private final ClienteMapper clienteMapper;
+
+    public ClienteService(ClienteMapper clienteMapper) {
+        this.clienteMapper = clienteMapper;
+    }
+
+    public ClienteDTO getClienteById(Long id) {
+        Cliente cliente = clienteRepository.findById(id).orElse(null);
+        if (cliente != null) {
+            String nombreRuta = obtenerNombreRuta(id);
+            return clienteMapper.toDTO(cliente, nombreRuta);
+        }
+        return null;
+    }
+}
+```
+
+## Repository Pattern
+
+### JpaRepository Interface
+
+Repositories extend `JpaRepository` for automatic CRUD operations:
+
+```java microservice-cliente/src/main/java/com/microservice/cliente/repository/ClienteRepository.java
+package com.microservice.cliente.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import com.microservice.cliente.entity.Cliente;
+
+public interface ClienteRepository extends JpaRepository<Cliente, Long> {
+    // No implementation needed - Spring Data JPA generates it automatically
+}
+```
+
+### Built-in Repository Methods
+
+`JpaRepository` provides these methods out of the box:
+
+```java
+// Create/Update
+Cliente save(Cliente entity);
+List<Cliente> saveAll(Iterable<Cliente> entities);
+
+// Read
+Optional<Cliente> findById(Long id);
+List<Cliente> findAll();
+List<Cliente> findAllById(Iterable<Long> ids);
+boolean existsById(Long id);
+long count();
+
+// Delete
+void deleteById(Long id);
+void delete(Cliente entity);
+void deleteAll();
+```
+
+### Custom Query Methods
+
+Spring Data JPA generates queries from method names:
+
+```java
+public interface ClienteRepository extends JpaRepository<Cliente, Long> {
+
+    // SELECT * FROM cliente WHERE email = ?
+    Optional<Cliente> findByEmail(String email);
+
+    // SELECT * FROM cliente WHERE nombre_negocio LIKE ?
+    List<Cliente> findByNombreNegocioContaining(String nombreNegocio);
+
+    // SELECT * FROM cliente WHERE latitud BETWEEN ? AND ? AND longitud BETWEEN ? AND ?
+    List<Cliente> findByLatitudBetweenAndLongitudBetween(
+        Double latMin, Double latMax, Double lonMin, Double lonMax
+    );
+
+    // SELECT COUNT(*) FROM cliente WHERE estado = ?
+    long countByEstado(String estado);
+
+    // SELECT * FROM cliente WHERE precio_corriente > ? ORDER BY precio_corriente DESC
+    List<Cliente> findByPrecioCorrienteGreaterThanOrderByPrecioCorrienteDesc(Double precio);
+}
+```
+
+### @Query Annotation for Custom SQL
+
+```java
+public interface ClienteRepository extends JpaRepository<Cliente, Long> {
+
+    // JPQL query
+    @Query("SELECT c FROM Cliente c WHERE c.latitud IS NOT NULL AND c.longitud IS NOT NULL")
+    List<Cliente> findClientesConCoordenadas();
+
+    // Native SQL query
+    @Query(value = "SELECT * FROM cliente WHERE ST_Distance_Sphere(point(longitud, latitud), point(:lon, :lat)) < :radiusMeters", 
+           nativeQuery = true)
+    List<Cliente> findClientesCercanos(
+        @Param("lat") Double lat, 
+        @Param("lon") Double lon, 
+        @Param("radiusMeters") Double radiusMeters
+    );
+
+    // Query with pagination
+    @Query("SELECT c FROM Cliente c WHERE c.nombreNegocio LIKE %:search%")
+    Page<Cliente> searchClientes(@Param("search") String search, Pageable pageable);
+}
+```
+
+<Tip>
+Use `nativeQuery = true` for database-specific functions like PostGIS spatial queries.
+</Tip>
+
+### Query Method Naming Convention
+
+| Keyword | Sample | JPQL Snippet |
+|---------|--------|---------------|
+| `findBy` | `findByEmail` | `where x.email = ?1` |
+| `And` | `findByNameAndEmail` | `where x.name = ?1 and x.email = ?2` |
+| `Or` | `findByNameOrEmail` | `where x.name = ?1 or x.email = ?2` |
+| `Between` | `findByPrecioBetween` | `where x.precio between ?1 and ?2` |
+| `LessThan` | `findByPrecioLessThan` | `where x.precio < ?1` |
+| `GreaterThan` | `findByPrecioGreaterThan` | `where x.precio > ?1` |
+| `Like` | `findByNombreLike` | `where x.nombre like ?1` |
+| `Containing` | `findByNombreContaining` | `where x.nombre like '%?1%'` |
+| `OrderBy` | `findByNombreOrderByPrecioDesc` | `order by x.precio desc` |
+| `Not` | `findByEstadoNot` | `where x.estado <> ?1` |
+| `In` | `findByIdIn(List<Long> ids)` | `where x.id in ?1` |
+
+## Transaction Management
+
+### @Transactional Annotation
+
+```java
+@Service
+public class ClienteService {
+
+    @Transactional  // Ensures ACID properties
+    public void deleteCliente(Long id) {
+        clienteRepository.findById(id)
+            .orElseThrow(() -> new ClienteNotFoundException(id));
+        
+        // If this fails, the entire transaction rolls back
+        entregaServiceClient.eliminarRelacionesCliente(id);
+        clienteRepository.deleteById(id);
+    }
+
+    @Transactional(readOnly = true)  // Optimization for read-only operations
+    public List<ClienteDTO> getAllClientes() {
+        return clienteRepository.findAll().stream()
+            .map(clienteMapper::toDTO)
+            .collect(Collectors.toList());
+    }
+}
+```
+
+<Warning>
+Always use `@Transactional` when performing multiple database operations that should succeed or fail together.
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use DTOs for API responses">
+    Never expose entities directly in REST APIs. Always map to DTOs to:
+    - Control what data is exposed
+    - Avoid lazy loading exceptions
+    - Decouple API contract from database schema
+  </Accordion>
+  
+  <Accordion title="Prefer constructor injection">
+    Inject repositories and mappers via constructor for better testability:
+    ```java
+    public ClienteService(ClienteRepository repo, ClienteMapper mapper) {
+        this.clienteRepository = repo;
+        this.clienteMapper = mapper;
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use @Transactional appropriately">
+    - Mark write operations with `@Transactional`
+    - Mark read operations with `@Transactional(readOnly = true)`
+    - Keep transactions as short as possible
+  </Accordion>
+  
+  <Accordion title="Validate null references">
+    Always check for null before accessing related entities:
+    ```java
+    public double[] getCoordenadas() {
+        return new double[] { 
+            latitud != null ? latitud : 0.0, 
+            longitud != null ? longitud : 0.0 
+        };
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use meaningful field names">
+    Follow Java naming conventions (camelCase) and use `@Column(name)` to map to database columns:
+    ```java
+    @Column(name = "precio_corriente")
+    private Double precioCorriente;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Spring Boot Services" icon="spring" href="/development/spring-boot-services">
+    Service layer architecture and dependency injection
+  </Card>
+  <Card title="Security" icon="shield" href="/development/security">
+    JWT authentication and authorization
+  </Card>
+  <Card title="Testing" icon="flask" href="/development/spring-boot-services#testing-strategies">
+    Unit and integration testing strategies
+  </Card>
+  <Card title="Database Schema" icon="table" href="/development/database-design">
+    Complete database schema documentation
+  </Card>
+</CardGroup>

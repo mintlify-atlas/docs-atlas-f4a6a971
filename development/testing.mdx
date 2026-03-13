@@ -1,0 +1,631 @@
+---
+title: 'Testing Guide'
+description: 'Testing strategies and frameworks used in Fluxora'
+icon: 'flask'
+---
+
+## Testing Strategy
+
+Fluxora uses comprehensive testing at multiple levels to ensure code quality and reliability across all microservices.
+
+<CardGroup cols={3}>
+  <Card title="Unit Tests" icon="microscope">
+    Test individual components in isolation
+  </Card>
+  
+  <Card title="Integration Tests" icon="plug">
+    Test service interactions and APIs
+  </Card>
+  
+  <Card title="Coverage Reports" icon="chart-line">
+    Track test coverage with JaCoCo
+  </Card>
+</CardGroup>
+
+## Testing Frameworks
+
+### Backend (Java/Spring Boot)
+
+<Tabs>
+  <Tab title="JUnit 5">
+    Primary testing framework for Java microservices
+    
+    ```xml pom.xml
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+    ```
+  </Tab>
+  
+  <Tab title="Mockito">
+    Mocking framework for unit tests
+    
+    ```java
+    @ExtendWith(MockitoExtension.class)
+    class UsuarioServiceTest {
+        @Mock
+        private UsuarioRepository usuarioRepository;
+        
+        @InjectMocks
+        private UsuarioService usuarioService;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="AssertJ">
+    Fluent assertion library
+    
+    ```java
+    assertThat(result).isNotNull();
+    assertThat(result.getNombre()).isEqualTo("Juan Pérez");
+    assertThat(result).hasSize(2);
+    ```
+  </Tab>
+  
+  <Tab title="MockMvc">
+    Test Spring MVC controllers
+    
+    ```java
+    @WebMvcTest(controllers = ProductoController.class)
+    @AutoConfigureMockMvc(addFilters = false)
+    class ProductoControllerTest {
+        @Autowired
+        private MockMvc mockMvc;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Frontend (Next.js/React)
+
+<Info>
+  Frontend testing configuration uses ESLint for code quality. Additional testing frameworks like Jest and React Testing Library can be added as needed.
+</Info>
+
+## Unit Testing
+
+### Service Layer Tests
+
+Test business logic in isolation using mocks. Here's an example from the Usuario microservice:
+
+<CodeGroup>
+```java Service Test Setup
+package com.microservice.usuario.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class UsuarioServiceTest {
+    
+    @Mock
+    private UsuarioRepository usuarioRepository;
+    
+    @Mock
+    private RolRepository rolRepository;
+    
+    @Mock
+    private PasswordEncoder passwordEncoder;
+    
+    @InjectMocks
+    private UsuarioService usuarioService;
+    
+    private Usuario usuario;
+    private Rol rol;
+    
+    @BeforeEach
+    void setUp() {
+        rol = new Rol(1L, "ADMIN");
+        usuario = new Usuario(1L, "Juan Pérez", 
+            "juan@example.com", "encodedPassword", rol);
+    }
+}
+```
+
+```java Test Example - Happy Path
+@Test
+void getAllUsuarios_DeberiaRetornarListaDeUsuarios() {
+    // Arrange
+    Usuario usuario2 = new Usuario(2L, "María García", 
+        "maria@example.com", "encodedPassword", rol);
+    when(usuarioRepository.findAll())
+        .thenReturn(Arrays.asList(usuario, usuario2));
+    
+    // Act
+    List<Usuario> result = usuarioService.getAllUsuarios();
+    
+    // Assert
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).getNombre()).isEqualTo("Juan Pérez");
+    assertThat(result.get(1).getNombre()).isEqualTo("María García");
+    verify(usuarioRepository, times(1)).findAll();
+}
+```
+
+```java Test Example - Error Case
+@Test
+void createUsuario_DeberiaLanzarExcepcionCuandoEmailYaExiste() {
+    // Arrange
+    CreateUsuarioRequest request = new CreateUsuarioRequest();
+    request.setEmail("juan@example.com");
+    request.setPassword("password123");
+    request.setRolId(1L);
+    
+    when(usuarioRepository.existsByEmail("juan@example.com"))
+        .thenReturn(true);
+    
+    // Act & Assert
+    assertThatThrownBy(() -> usuarioService.createUsuario(request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Email ya registrado");
+    
+    verify(usuarioRepository, times(1))
+        .existsByEmail("juan@example.com");
+    verify(usuarioRepository, times(0))
+        .save(any(Usuario.class));
+}
+```
+</CodeGroup>
+
+### Test Naming Convention
+
+Follow this pattern for test method names:
+
+```
+<methodName>_<Condition>_<ExpectedResult>
+```
+
+<CardGroup cols={2}>
+  <Card title="Good Examples" icon="check">
+    - `getAllUsuarios_DeberiaRetornarListaDeUsuarios`
+    - `createUsuario_DeberiaLanzarExcepcionCuandoEmailYaExiste`
+    - `updateUsuario_DeberiaActualizarNombreYEmail`
+    - `deleteUsuario_DeberiaLanzarExcepcionCuandoUsuarioNoExiste`
+  </Card>
+  
+  <Card title="Poor Examples" icon="xmark">
+    - `testGetAll`
+    - `test1`
+    - `usuarioTest`
+    - `checkCreate`
+  </Card>
+</CardGroup>
+
+## Integration Tests (Controller Layer)
+
+Test REST endpoints using MockMvc. Example from the Inventario microservice:
+
+<CodeGroup>
+```java Controller Test Setup
+package com.microservice.inventario.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(controllers = ProductoController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class ProductoControllerTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @MockBean
+    private ProductoService productoService;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    private ProductoDTO productoDTO;
+    
+    @BeforeEach
+    void setUp() {
+        productoDTO = ProductoDTO.builder()
+            .id(1L)
+            .nombre("Pan Integral")
+            .estado("activo")
+            .precioVenta(5.50)
+            .tipoProducto("CORRIENTE")
+            .categoria("panaderia")
+            .stockTotal(100)
+            .build();
+    }
+}
+```
+
+```java GET Endpoint Test
+@Test
+void listar_DeberiaRetornarListaDeProductos() throws Exception {
+    // Arrange
+    ProductoDTO producto2 = ProductoDTO.builder()
+        .id(2L)
+        .nombre("Torta Chocolate")
+        .estado("activo")
+        .precioVenta(25.00)
+        .stockTotal(50)
+        .build();
+    
+    when(productoService.findAll())
+        .thenReturn(Arrays.asList(productoDTO, producto2));
+    
+    // Act & Assert
+    mockMvc.perform(get("/productos")
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$.length()").value(2))
+        .andExpect(jsonPath("$[0].nombre").value("Pan Integral"))
+        .andExpect(jsonPath("$[0].stockTotal").value(100));
+    
+    verify(productoService, times(1)).findAll();
+}
+```
+
+```java POST Endpoint Test
+@Test
+void crear_DeberiaCrearNuevoProducto() throws Exception {
+    // Arrange
+    ProductoDTO nuevoProducto = ProductoDTO.builder()
+        .nombre("Pan Francés")
+        .estado("activo")
+        .precioVenta(3.50)
+        .tipoProducto("CORRIENTE")
+        .categoria("panaderia")
+        .build();
+    
+    ProductoDTO productoCreado = ProductoDTO.builder()
+        .id(3L)
+        .nombre("Pan Francés")
+        .estado("activo")
+        .precioVenta(3.50)
+        .stockTotal(0)
+        .build();
+    
+    when(productoService.save(any(ProductoDTO.class)))
+        .thenReturn(productoCreado);
+    
+    // Act & Assert
+    mockMvc.perform(post("/productos")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(nuevoProducto)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(3))
+        .andExpect(jsonPath("$.nombre").value("Pan Francés"))
+        .andExpect(jsonPath("$.precioVenta").value(3.50));
+    
+    verify(productoService, times(1)).save(any(ProductoDTO.class));
+}
+```
+</CodeGroup>
+
+## Test Coverage with JaCoCo
+
+All microservices are configured with JaCoCo for code coverage analysis.
+
+### Configuration
+
+```xml pom.xml
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.11</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+### Viewing Coverage Reports
+
+<Steps>
+  <Step title="Run Tests with Coverage">
+    ```bash
+    mvn clean test
+    ```
+  </Step>
+  
+  <Step title="Generate Report">
+    Coverage report is automatically generated in:
+    ```
+    target/site/jacoco/index.html
+    ```
+  </Step>
+  
+  <Step title="Open Report">
+    ```bash
+    open target/site/jacoco/index.html
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  JaCoCo reports show line coverage, branch coverage, and complexity metrics for each class and package.
+</Info>
+
+## Running Tests
+
+### Run All Tests
+
+<Tabs>
+  <Tab title="Single Microservice">
+    ```bash
+    cd Microservicios/microservice-usuario
+    mvn test
+    ```
+  </Tab>
+  
+  <Tab title="All Microservices">
+    ```bash
+    # From project root
+    for service in Microservicios/microservice-*/; do
+        echo "Testing $service"
+        cd "$service"
+        mvn test
+        cd ../..
+    done
+    ```
+  </Tab>
+  
+  <Tab title="Specific Test Class">
+    ```bash
+    mvn test -Dtest=UsuarioServiceTest
+    ```
+  </Tab>
+  
+  <Tab title="Specific Test Method">
+    ```bash
+    mvn test -Dtest=UsuarioServiceTest#getAllUsuarios_DeberiaRetornarListaDeUsuarios
+    ```
+  </Tab>
+</Tabs>
+
+### Skip Tests (Use Sparingly)
+
+<Warning>
+  Only skip tests when absolutely necessary, such as during rapid development iterations. Always run tests before committing.
+</Warning>
+
+```bash
+mvn clean install -DskipTests
+```
+
+## Writing New Tests
+
+### Test Structure (AAA Pattern)
+
+Organize tests using Arrange-Act-Assert:
+
+```java
+@Test
+void methodName_condition_expectedResult() {
+    // Arrange - Set up test data and mocks
+    Usuario usuario = new Usuario(1L, "Test User");
+    when(repository.findById(1L)).thenReturn(Optional.of(usuario));
+    
+    // Act - Execute the method being tested
+    Usuario result = service.getUsuarioById(1L);
+    
+    // Assert - Verify the results
+    assertThat(result).isNotNull();
+    assertThat(result.getNombre()).isEqualTo("Test User");
+    verify(repository, times(1)).findById(1L);
+}
+```
+
+### What to Test
+
+<AccordionGroup>
+  <Accordion title="Happy Paths" icon="check">
+    Test normal scenarios where everything works as expected
+    
+    Example:
+    - Creating a valid user
+    - Retrieving existing records
+    - Updating with valid data
+  </Accordion>
+  
+  <Accordion title="Error Cases" icon="triangle-exclamation">
+    Test exception handling and validation
+    
+    Example:
+    - Email already exists
+    - Entity not found
+    - Invalid input data
+    - Null parameters
+  </Accordion>
+  
+  <Accordion title="Edge Cases" icon="diamond">
+    Test boundary conditions
+    
+    Example:
+    - Empty lists
+    - Maximum/minimum values
+    - Null optional fields
+    - Special characters in strings
+  </Accordion>
+  
+  <Accordion title="Business Logic" icon="gears">
+    Test complex calculations and workflows
+    
+    Example:
+    - Price calculations
+    - Stock management
+    - Route optimization
+    - User permissions
+  </Accordion>
+</AccordionGroup>
+
+### Test Data Builders
+
+Use builders for cleaner test setup:
+
+```java
+// Good - Using builder pattern
+ProductoDTO producto = ProductoDTO.builder()
+    .nombre("Pan Integral")
+    .precioVenta(5.50)
+    .stockTotal(100)
+    .build();
+
+// Better - Create test data factory
+public class TestDataFactory {
+    public static ProductoDTO createProducto() {
+        return ProductoDTO.builder()
+            .nombre("Pan Integral")
+            .precioVenta(5.50)
+            .stockTotal(100)
+            .build();
+    }
+}
+```
+
+## Test File Locations
+
+Tests mirror the source code structure:
+
+```
+microservice-usuario/
+├── src/
+│   ├── main/java/com/microservice/usuario/
+│   │   ├── controller/
+│   │   │   └── UsuarioController.java
+│   │   ├── service/
+│   │   │   └── UsuarioService.java
+│   │   └── repository/
+│   │       └── UsuarioRepository.java
+│   └── test/java/com/microservice/usuario/
+│       ├── controller/
+│       │   └── UsuarioControllerTest.java
+│       ├── service/
+│       │   └── UsuarioServiceTest.java
+│       └── MicroserviceUsuarioApplicationTests.java
+```
+
+<Note>
+  Test files should have the same package structure as the source files they test, with `Test` suffix.
+</Note>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Test Independence" icon="puzzle-piece">
+    - Each test should be independent
+    - Don't rely on test execution order
+    - Clean up test data after each test
+    - Use `@BeforeEach` for setup
+  </Card>
+  
+  <Card title="Mock Wisely" icon="masks-theater">
+    - Mock external dependencies
+    - Don't mock the class under test
+    - Verify important interactions
+    - Use real objects when simple
+  </Card>
+  
+  <Card title="Clear Assertions" icon="magnifying-glass">
+    - Test one concept per test
+    - Use descriptive assertion messages
+    - Assert the most specific thing
+    - Verify mock interactions
+  </Card>
+  
+  <Card title="Fast Tests" icon="gauge-high">
+    - Keep unit tests fast (< 100ms)
+    - Avoid database calls in unit tests
+    - Use H2 for integration tests
+    - Run tests frequently
+  </Card>
+</CardGroup>
+
+## Continuous Integration
+
+Tests run automatically on:
+
+- Every commit to pull requests
+- Merge to main branch
+- Scheduled nightly builds
+
+<Warning>
+  Pull requests with failing tests cannot be merged. Ensure all tests pass before requesting review.
+</Warning>
+
+## Common Testing Patterns
+
+### Testing Exceptions
+
+```java
+assertThatThrownBy(() -> service.deleteUsuario(999L))
+    .isInstanceOf(IllegalArgumentException.class)
+    .hasMessage("Usuario no encontrado");
+```
+
+### Testing Optional Returns
+
+```java
+when(repository.findById(99L)).thenReturn(Optional.empty());
+
+Usuario result = service.getUsuarioById(99L);
+
+assertThat(result).isNull();
+```
+
+### Testing Collections
+
+```java
+assertThat(result)
+    .hasSize(2)
+    .extracting(Usuario::getNombre)
+    .containsExactly("Juan Pérez", "María García");
+```
+
+## Resources
+
+<CardGroup cols={3}>
+  <Card title="JUnit 5 Docs" icon="book" href="https://junit.org/junit5/docs/current/user-guide/">
+    Official JUnit 5 documentation
+  </Card>
+  
+  <Card title="Mockito Docs" icon="book" href="https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html">
+    Mockito framework reference
+  </Card>
+  
+  <Card title="AssertJ Docs" icon="book" href="https://assertj.github.io/doc/">
+    AssertJ assertion library
+  </Card>
+</CardGroup>
