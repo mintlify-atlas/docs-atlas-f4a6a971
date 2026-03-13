@@ -1,0 +1,161 @@
+{
+  "projectType": "saas",
+  "projectName": "Fluxora",
+  "projectDescription": "A comprehensive microservices-based management system for client, inventory, delivery, and user operations with role-based access control.",
+  "theme": "aspen",
+  "primaryColor": "#2563eb",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/installation",
+              "getting-started/configuration",
+              "getting-started/docker-setup",
+              "getting-started/authentication"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/user-management",
+              "features/client-management",
+              "features/inventory-management",
+              "features/delivery-management",
+              "features/reporting"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/admin-guide",
+              "guides/producer-guide",
+              "guides/driver-guide"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/render",
+              "deployment/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/gateway"
+            ]
+          },
+          {
+            "group": "Microservices",
+            "pages": [
+              "api/usuario-service",
+              "api/cliente-service",
+              "api/inventario-service",
+              "api/entrega-service"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/endpoints/usuarios",
+              "api/endpoints/clientes",
+              "api/endpoints/inventario",
+              "api/endpoints/entregas"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/microservices-architecture",
+              "development/service-discovery",
+              "development/api-gateway-pattern",
+              "development/database-design"
+            ]
+          },
+          {
+            "group": "Frontend",
+            "pages": [
+              "development/frontend-overview",
+              "development/components",
+              "development/routing",
+              "development/state-management"
+            ]
+          },
+          {
+            "group": "Backend",
+            "pages": [
+              "development/spring-boot-services",
+              "development/jpa-entities",
+              "development/security",
+              "development/inter-service-communication"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/contributing",
+              "development/testing",
+              "development/code-style"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Microservices architecture with Spring Boot and Eureka service discovery",
+    "Role-based access control with JWT authentication (Admin, Producer, Driver)",
+    "Client management with delivery route tracking",
+    "Complete inventory management system with recipes and raw materials",
+    "Delivery tracking and route optimization",
+    "Real-time dashboards and reporting with charts",
+    "Next.js frontend with responsive design",
+    "Docker containerization and Render deployment support"
+  ],
+  "publicApiSurface": [
+    "POST /api/usuarios/auth/login - User authentication",
+    "GET /clientes - Get all clients",
+    "POST /clientes - Create new client",
+    "GET /usuarios - Get all users",
+    "POST /usuarios - Create new user",
+    "GET /productos - Get all products",
+    "POST /productos - Create new product",
+    "GET /materias-primas - Get raw materials",
+    "POST /materias-primas - Create raw material",
+    "GET /recetas - Get recipes",
+    "POST /recetas - Create recipe",
+    "GET /entregas - Get all deliveries",
+    "POST /entregas - Create delivery",
+    "GET /rutas - Get delivery routes",
+    "POST /rutas - Create delivery route",
+    "GET /lotes - Get production batches",
+    "POST /lotes - Create production batch"
+  ]
+}
